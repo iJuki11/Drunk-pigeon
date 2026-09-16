@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="hr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#25282b" />
+    <meta
+      name="description"
+      content="Pivski let — mala mobile-first endless flyer igra o golubu koji skuplja pive iznad grada."
+    />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2325282b'/%3E%3Cpath d='M18 15h25v34H18z' fill='%23f5b82e'/%3E%3Cpath d='M43 23h7v18h-7' fill='none' stroke='%23f5b82e' stroke-width='6'/%3E%3Cpath d='M18 15h25v8H18z' fill='%23fff4c4'/%3E%3C/svg%3E"
+    />
+    <title>Pivski let</title>
+    <link rel="stylesheet" href="./styles/style.css" />
+  </head>
+  <body>
+    <main class="game-shell" aria-label="Pivski let — endless flyer igra">
+      <canvas id="game-canvas" aria-label="Prostor igre"></canvas>
+
+      <section id="hud" class="hud" aria-label="Rezultat igre" hidden>
+        <div class="hud-score">
+          <span>REZULTAT</span>
+          <strong id="score-value">0</strong>
+        </div>
+        <div class="hud-pill" aria-label="Skupljene pive">
+          <span class="beer-dot" aria-hidden="true"></span>
+          <strong id="beer-value">0</strong>
+        </div>
+        <div class="hud-pill hud-distance" aria-label="Prijeđena udaljenost">
+          <strong id="distance-value">0 m</strong>
+        </div>
+      </section>
+
+      <section id="start-screen" class="screen screen-start">
+        <div class="brand-mark" aria-hidden="true">
+          <span class="wing wing-left"></span>
+          <span class="mug"><span></span></span>
+          <span class="wing wing-right"></span>
+        </div>
+        <p class="eyebrow">GRADSKA LETAČKA LINIJA</p>
+        <h1>PIVSKI<br />LET</h1>
+        <p class="screen-copy">Drži goluba u zraku.<br />Skupi svaku zlatnu kriglu.</p>
+        <button id="play-button" class="primary-button" type="button">
+          <span>IGRAJ</span>
+          <span aria-hidden="true">→</span>
+        </button>
+        <p class="control-hint"><span>Tap</span> ili <kbd>Space</kbd> za zamah</p>
+      </section>
+
+      <section id="game-over-screen" class="screen screen-over" hidden>
+        <p class="eyebrow">LET JE ZAVRŠEN</p>
+        <h2>KRAJ<br />RUNDE</h2>
+        <div class="results" aria-label="Rezultati runde">
+          <div class="result-main">
+            <span>REZULTAT</span>
+            <strong id="final-score">0</strong>
+          </div>
+          <div>
+            <span>UDALJENOST</span>
+            <strong id="final-distance">0 m</strong>
+          </div>
+          <div>
+            <span>PIVE</span>
+            <strong id="final-beers">0</strong>
+          </div>
+        </div>
+        <button id="replay-button" class="primary-button" type="button">
+          <span>PONOVNO</span>
+          <span aria-hidden="true">↻</span>
+        </button>
+      </section>
+
+      <div id="touch-prompt" class="touch-prompt" hidden aria-hidden="true">
+        TAPNI ZA ZAMAH
+      </div>
+    </main>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
