@@ -1,5 +1,5 @@
 const TAU = Math.PI * 2;
-const HEAD_URL = new URL('../assets/images/prsan-head.png', import.meta.url).href;
+const HEAD_URL = new URL('../assets/images/toni.png', import.meta.url).href;
 const INK = '#3d4547';
 let sharedHead;
 

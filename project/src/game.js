@@ -3,7 +3,7 @@ import { CollectibleManager } from "./collectibles.js";
 import { AssetLoader } from "./assets.js";
 import { AudioBus } from "./audio.js";
 import { Health } from "./health.js";
-import { PrsanManager } from "./enemies.js";
+import { PrsanManager, PadobranManager } from "./enemies.js";
 import { PoopManager } from "./poop.js";
 // Toni and Decki are temporarily disabled — see commented lines below
 // to re-enable. PrsanManager is the only active enemy for now.
@@ -73,6 +73,7 @@ export class Game {
     // this.toniManager = new ToniManager(this.assets, this.audio, this.health);
     // this.deckiManager = new DeckiManager(this.assets, this.audio);
     this.prsanManager = new PrsanManager({ audio: this.audio, health: this.health });
+    this.padobranManager = new PadobranManager({ minInterval: 5, maxInterval: 15 });
     this.poopManager = new PoopManager(this.audio, (x, y) => { this.scorePenalty -= 200; this.popups.push({ x, y, age: 0, value: "-200", negative: true }); });
 
     this.parallaxProject = null;
@@ -141,6 +142,7 @@ export class Game {
     // this.toniManager.reset();
     // this.deckiManager.reset();
     this.prsanManager.reset();
+    this.padobranManager.reset();
     this.poopManager.reset();
     this.player = new Player(this.width * 0.25, this.height * 0.45);
     this.player.flap();
@@ -258,6 +260,7 @@ export class Game {
     this.poopManager.update(deltaTime, this.height, [] /* was this.deckiManager.activeItems() */);
     // this.toniManager.update(deltaTime, this.width, this.height, this.player);
     this.prsanManager.update(deltaTime, this.width, this.height, this.player);
+    this.padobranManager.update(deltaTime, this.width, this.height);
     if (this.coffeeBoostTimer > 0) { this.coffeeBoostTimer = Math.max(0, this.coffeeBoostTimer - deltaTime); if (!this.coffeeBoostTimer) { this.poopManager.cooldown = 5; this.coffeeCollected = 0; } }
     const collectedItems = this.collectibles.collect(this.player.getBounds());
 
@@ -458,6 +461,7 @@ export class Game {
     this.poopManager.draw(context);
     // this.toniManager.draw(context);
     this.prsanManager.draw(context);
+    this.padobranManager.draw(context);
     this.player.draw(context);
     this.drawPopups(context);
     this.drawVignette(context);
