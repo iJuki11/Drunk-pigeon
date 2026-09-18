@@ -1,0 +1,32 @@
+# Frame hitching — preostali zadaci
+
+Detaljan opis: docs/frame-hitching-mobile.md
+
+## TODO (po prioritetu)
+
+- [ ] **A** Pre-render player sprite u 3 frame-a krila
+      src/player.js → 9 pathova po frameu → 1 drawImage
+      Procjena: 2h, efekt -3-6 ms/frame
+
+- [ ] **B** State interpolation za player.y/worldX
+      src/game.js → render između prethodnog i trenutnog stanja
+      Procjena: 1h, uklanja vizualne skokove nakon hitchinga
+
+- [ ] **C** Service Worker za parallax cache
+      service-worker.js + index/html
+      Procjena: 2h, brži reload, manje decode spike-ova
+
+- [ ] **D** Refaktor parallax exporta — 17 zasebnih PNG-ova
+      umjesto 5.2 MB JSON-a s base64
+      Procjena: 3h, manji prvi fetch, paralelni download
+
+- [ ] **E** Chrome DevTools profiliranje
+      točna lista preostalih hotspotova
+      Procjena: 30min, ovisi o nalazima
+
+## Kreni s A. Najveći efekt po vremenu.
+
+## Baseline (Faza 8, iPhone 12 Safari):
+- prosječni fps: ~55
+- >33 ms frame-ovi: ~5%
+- peak: 80-150 ms (prvi frame nakon loada)

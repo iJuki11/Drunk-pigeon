@@ -1,0 +1,32 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+
+const gameSource = fs.readFileSync(new URL("../src/game.js", import.meta.url), "utf8");
+const backgroundSource = fs.readFileSync(new URL("../src/parallax-background.js", import.meta.url), "utf8");
+
+// game.js must drive the parallax via the editor's ParallaxRuntime (single
+// renderer contract shared with the editor), not a hand-rolled renderer.
+assert.match(gameSource, /globalThis\.ParallaxRuntime\.render\(/);
+assert.match(gameSource, /from "\.\/parallax-background\.js"/);
+assert.match(gameSource, /ZOOM_BACKGROUND/);
+assert.match(gameSource, /SKIP_LAYER_IDS/);
+// Dead config from the previous architecture must be gone.
+assert.doesNotMatch(gameSource, /BACKGROUND_LOCAL_OFFSETS/);
+assert.doesNotMatch(gameSource, /BACKGROUND_DEPTH_OVERRIDES/);
+assert.doesNotMatch(gameSource, /localBreath/);
+assert.doesNotMatch(gameSource, /new ParallaxBackground\(\)/);
+// The game no longer overrides per-layer parallax — the JSON's parallax field
+// is the single source of truth, shared with the editor.
+assert.doesNotMatch(gameSource, /BACKGROUND_DEPTHS/);
+// Pre-built scene cache must exist so draw() doesn't allocate 17 objects per frame.
+assert.match(gameSource, /parallaxSceneCache/);
+assert.match(gameSource, /this\.parallaxSceneCache = sceneForRuntime/);
+
+// Configuration file must export the constants game.js reads.
+assert.match(backgroundSource, /export const ZOOM_BACKGROUND/);
+assert.match(backgroundSource, /export const SKIP_LAYER_IDS/);
+assert.doesNotMatch(backgroundSource, /class ParallaxBackground/);
+assert.doesNotMatch(backgroundSource, /BACKGROUND_PERIODS/);
+assert.doesNotMatch(backgroundSource, /BACKGROUND_DEPTHS/);
+
+console.log("background depth smoke: ok (game uses ParallaxRuntime, scene cached at load, JSON parallax respected)");

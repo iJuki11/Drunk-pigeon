@@ -303,13 +303,12 @@ export class Game {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const project = await response.json();
       // Decode foreground assets first so the playable scene is visible
-      // within the first frame or two; far/mid layers can land a moment
-      // later. The sky / sun / clouds layers are not used by the game
-      // (see docs/parallax-bug-sun-clouds.md) so we deprioritise them.
+      // within the first frame or two; far/sky layers can land a moment
+      // later without anyone noticing.
       const SCENE_LAYER_PRIORITY = [
         "road", "cafe", "house", "hedge", "lamps", "trees",
         "06c-houses-front", "06b-houses-middle", "06a-houses-back",
-        "mid", "far",
+        "mid", "far", "clouds", "sun", "sky",
       ];
       const layerByAssetId = new Map();
       for (const layer of project.scene.layers) {
@@ -339,25 +338,20 @@ export class Game {
         }));
       }
       this.parallaxProject = project;
-      // Pre-build the scene we hand to ParallaxRuntime every frame. Drops:
-      //   - sky layer (game paints its own viewport gradient)
-      //   - sun and clouds (loop-only export puts them only in part 1 of the
-      //     PNG, so when the parallax phase crosses the 4096→4500 boundary the
-      //     viewport shows an empty sky strip — see docs/parallax-bug-sun-clouds.md)
-      //   - any SKIP_LAYER_IDS duplicates
-      // The remaining layers (far, mid, houses, road, ...) all wrap correctly.
+      // Pre-build the scene we hand to ParallaxRuntime every frame: drop the
+      // sky layer (game paints its own viewport gradient), skip duplicates,
+      // and tone down sun/clouds. The structure is now stable — no per-frame
+      // allocation in draw(), so the GC doesn't churn during play.
       const scene = project.scene;
       const sceneForRuntime = {
         ...scene,
         layers: scene.layers
-          .filter((layer) =>
-            layer.id !== "sky" &&
-            layer.id !== "sun" &&
-            layer.id !== "clouds" &&
-            !SKIP_LAYER_IDS.has(layer.id)
-          )
+          .filter((layer) => layer.id !== "sky" && !SKIP_LAYER_IDS.has(layer.id))
           .map((layer) => {
-            return { ...layer };
+            const opacity = layer.id === "clouds" ? Math.min(layer.opacity ?? 1, 0.45)
+                         : layer.id === "sun"    ? Math.min(layer.opacity ?? 1, 0.6)
+                         : layer.opacity;
+            return { ...layer, opacity };
           }),
       };
       this.parallaxSceneCache = sceneForRuntime;

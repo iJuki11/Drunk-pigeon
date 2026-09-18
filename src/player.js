@@ -3,8 +3,8 @@ export class Player {
     this.x = x;
     this.y = y;
     this.velocityY = 0;
-    this.width = 50;
-    this.height = 34;
+    this.width = 56;
+    this.height = 48;
     this.rotation = 0;
     this.wingPhase = 0;
   }
@@ -33,65 +33,173 @@ export class Player {
   }
 
   draw(context) {
-    const flapOffset = Math.sin(this.wingPhase) * 7;
+    const flap = Math.sin(this.wingPhase);
+    const outline = "#3d4547";
 
     context.save();
     context.translate(this.x, this.y);
     context.rotate(this.rotation);
+    context.lineJoin = "round";
+    context.lineCap = "round";
+    context.lineWidth = 1.8;
+    context.strokeStyle = outline;
 
-    context.fillStyle = "rgba(0, 0, 0, 0.18)";
+    // A short, three-feather tail sits behind the round body.
+    context.fillStyle = "#667375";
     context.beginPath();
-    context.ellipse(-1, 17, 24, 5, 0, 0, Math.PI * 2);
+    context.moveTo(-20, 8);
+    context.lineTo(-35, 3);
+    context.lineTo(-32, -2);
+    context.lineTo(-38, -9);
+    context.lineTo(-30, -8);
+    context.lineTo(-32, -15);
+    context.quadraticCurveTo(-20, -12, -15, 0);
+    context.closePath();
+    context.fill();
+    context.stroke();
+
+    // Far wing: a small silhouette, animated independently of the body.
+    context.save();
+    context.translate(3, -7);
+    context.rotate(-0.35 + flap * 0.65);
+    context.fillStyle = "#758385";
+    context.beginPath();
+    context.moveTo(-8, 6);
+    context.quadraticCurveTo(-14, -16, -4, -24);
+    context.quadraticCurveTo(6, -19, 8, 3);
+    context.closePath();
+    context.fill();
+    context.stroke();
+    context.restore();
+
+    // The head and belly share one chunky, slightly pear-shaped silhouette.
+    context.beginPath();
+    context.moveTo(-25, -4);
+    context.bezierCurveTo(-24, -19, -14, -25, 1, -24);
+    context.bezierCurveTo(18, -25, 27, -13, 27, 2);
+    context.bezierCurveTo(29, 18, 17, 26, 0, 25);
+    context.bezierCurveTo(-20, 26, -30, 15, -25, -4);
+    context.closePath();
+    context.fillStyle = "#a5afad";
     context.fill();
 
-    context.fillStyle = "#747a7c";
+    // Flat color blocks clipped to the body; no textures or gradients.
+    context.save();
+    context.clip();
+    context.fillStyle = "#899694";
     context.beginPath();
-    context.moveTo(-11, 5);
-    context.quadraticCurveTo(-31, -14 - flapOffset, -36, -3 - flapOffset);
-    context.quadraticCurveTo(-28, 8, -9, 11);
-    context.fill();
-
-    context.fillStyle = "#aeb2b2";
-    context.beginPath();
-    context.ellipse(-2, 2, 24, 15, -0.08, 0, Math.PI * 2);
-    context.fill();
-
-    context.fillStyle = "#5e6567";
-    context.beginPath();
-    context.ellipse(12, -5, 13, 12, 0.12, 0, Math.PI * 2);
-    context.fill();
-
-    context.fillStyle = "#3f8a82";
-    context.beginPath();
-    context.arc(7, 2, 8, 0.4, 2.7);
-    context.lineTo(12, 8);
-    context.fill();
-
-    context.fillStyle = "#e5e6e1";
-    context.beginPath();
-    context.arc(16, -9, 3.4, 0, Math.PI * 2);
-    context.fill();
-    context.fillStyle = "#202326";
-    context.beginPath();
-    context.arc(17, -9, 1.45, 0, Math.PI * 2);
-    context.fill();
-
-    context.fillStyle = "#b7853c";
-    context.beginPath();
-    context.moveTo(24, -5);
-    context.lineTo(34, -1);
-    context.lineTo(24, 2);
+    context.moveTo(-28, 5);
+    context.quadraticCurveTo(-7, 31, 29, 5);
+    context.lineTo(32, 31);
+    context.lineTo(-30, 31);
     context.closePath();
     context.fill();
 
-    context.strokeStyle = "#5b6061";
-    context.lineWidth = 3;
-    context.lineCap = "round";
+    context.fillStyle = "#557e78";
     context.beginPath();
-    context.moveTo(-17, 4);
-    context.quadraticCurveTo(-4, -16 + flapOffset, 12, 2);
+    context.ellipse(13, 4, 16, 12, -0.25, 0, Math.PI * 2);
+    context.fill();
+
+    context.fillStyle = "#e4decc";
+    context.beginPath();
+    context.ellipse(7, 16, 19, 13, -0.12, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+    // Trace the silhouette once more over the clipped color blocks.
+    context.beginPath();
+    context.moveTo(-25, -4);
+    context.bezierCurveTo(-24, -19, -14, -25, 1, -24);
+    context.bezierCurveTo(18, -25, 27, -13, 27, 2);
+    context.bezierCurveTo(29, 18, 17, 26, 0, 25);
+    context.bezierCurveTo(-20, 26, -30, 15, -25, -4);
+    context.closePath();
     context.stroke();
 
+    // Two little crown feathers make the silhouette readable at game size.
+    context.fillStyle = "#73817f";
+    context.beginPath();
+    context.moveTo(-8, -23);
+    context.quadraticCurveTo(-15, -28, -10, -31);
+    context.quadraticCurveTo(-4, -31, -1, -25);
+    context.quadraticCurveTo(0, -31, 5, -29);
+    context.quadraticCurveTo(9, -27, 6, -23);
+    context.fill();
+    context.stroke();
+
+    // Cream eyes and forward-looking pupils under heavy, annoyed brows.
+    context.fillStyle = "#faf3de";
+    context.beginPath();
+    context.ellipse(6, -9, 8, 8.5, -0.12, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
+    context.beginPath();
+    context.ellipse(20, -9, 6.5, 7.5, -0.12, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
+
+    context.fillStyle = "#293538";
+    context.beginPath();
+    context.ellipse(9, -8, 2.6, 3.7, 0, 0, Math.PI * 2);
+    context.ellipse(22, -8, 2.3, 3.2, 0, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = "#ffffff";
+    context.beginPath();
+    context.arc(9.7, -9.4, 0.85, 0, Math.PI * 2);
+    context.arc(22.6, -9.1, 0.75, 0, Math.PI * 2);
+    context.fill();
+
+    context.strokeStyle = "#354143";
+    context.lineWidth = 4.5;
+    context.beginPath();
+    context.moveTo(-1, -19);
+    context.lineTo(12, -14);
+    context.moveTo(17, -14);
+    context.lineTo(26, -18);
+    context.stroke();
+    context.strokeStyle = outline;
+    context.lineWidth = 1.8;
+
+    // A compact, two-tone beak projects in the direction of travel.
+    context.fillStyle = "#d99951";
+    context.beginPath();
+    context.moveTo(19, -2);
+    context.quadraticCurveTo(25, -7, 29, -4);
+    context.lineTo(37, 1);
+    context.lineTo(24, 4);
+    context.closePath();
+    context.fill();
+    context.stroke();
+    context.fillStyle = "#b97843";
+    context.beginPath();
+    context.moveTo(24, 4);
+    context.lineTo(34, 2);
+    context.quadraticCurveTo(30, 10, 24, 7);
+    context.closePath();
+    context.fill();
+    context.stroke();
+
+    // Near wing pivots at the shoulder, with two simple feather marks.
+    context.save();
+    context.translate(-12, 2);
+    context.rotate(-0.15 + flap * 0.6);
+    context.fillStyle = "#748581";
+    context.beginPath();
+    context.moveTo(8, -3);
+    context.bezierCurveTo(-2, -12, -16, -9, -18, -1);
+    context.bezierCurveTo(-17, 9, -5, 15, 4, 11);
+    context.quadraticCurveTo(11, 7, 8, -3);
+    context.closePath();
+    context.fill();
+    context.stroke();
+    context.strokeStyle = "#526663";
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(-13, 0);
+    context.quadraticCurveTo(-9, 5, -4, 6);
+    context.moveTo(-8, -3);
+    context.quadraticCurveTo(-4, 2, 1, 3);
+    context.stroke();
+    context.restore();
     context.restore();
   }
 }

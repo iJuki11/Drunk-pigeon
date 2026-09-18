@@ -6,7 +6,7 @@ import { Health } from "./health.js";
 import { ToniManager } from "./enemies.js";
 import { PoopManager } from "./poop.js";
 import { DeckiManager } from "./deckis.js";
-import { SKIP_LAYER_IDS, ZOOM_BACKGROUND } from "./parallax-background.js";
+import { BACKGROUND_DEPTHS, SKIP_LAYER_IDS, ZOOM_BACKGROUND } from "./parallax-background.js";
 
 const CITY_WORLD_LENGTH = 4500;
 const FRAME_TIMING_SAMPLE_SIZE = 120;
@@ -42,19 +42,6 @@ export class Game {
     this.frameTimingWarningIssued = false;
     this.popups = [];
     this.scorePenalty = 0;
-    this.cachedGroundY = 0;
-    this.cachedSkyGradient = null;
-    this.cachedSkyKey = "";
-    // Reused every frame so we don't allocate a snapshot object per update.
-    this.uiSnapshot = {
-      score: 0,
-      distance: 0,
-      beers: 0,
-      health: 0,
-      poopCounter: 0,
-      poopCooldown: 5,
-      coffeeBoost: 0,
-    };
     this.collectibles = new CollectibleManager();
     this.player = new Player(90, 300);
     this.health = new Health();
@@ -71,11 +58,6 @@ export class Game {
 
     this.parallaxProject = null;
     this.parallaxImages = new Map();
-    this.parallaxSceneCache = null;
-    // Fire-and-forget: loadParallaxBackground kicks off the JSON+PNG decode
-    // pipeline and updates this.parallaxProject once images are ready. The
-    // first few frames still use the procedural fallback, so there's no
-    // startup hitch on the main thread.
     this.loadParallaxBackground();
 
     this.frame = this.frame.bind(this);
@@ -99,17 +81,9 @@ export class Game {
     this.canvas.height = Math.round(this.height * this.pixelRatio);
     this.context.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
 
-    // Recompute cached ground + sky gradient when viewport changes.
-    this.cachedGroundY = this.computeGroundY();
-    this.cachedSkyKey = `${this.width}x${this.height}`;
-    this.cachedSkyGradient = this.context.createLinearGradient(0, 0, 0, this.height);
-    this.cachedSkyGradient.addColorStop(0, "#c7cbca");
-    this.cachedSkyGradient.addColorStop(0.55, "#aeb4b5");
-    this.cachedSkyGradient.addColorStop(1, "#858c8e");
-
     if (this.state === STATE.START || this.state === STATE.GAME_OVER) {
       this.player.x = this.width * 0.25;
-      this.player.y = Math.min(this.height * 0.44, this.cachedGroundY - this.player.height);
+      this.player.y = this.height * 0.44;
     }
   }
 
@@ -171,28 +145,22 @@ export class Game {
   }
 
   snapshot() {
-    // Mutate the cached object in place — the UI only reads fields, and
-    // allocating a fresh one per frame is wasted GC pressure at 60 fps.
-    const s = this.uiSnapshot;
-    s.score = this.score;
-    s.distance = this.distance;
-    s.beers = this.beers;
-    s.health = this.health.getCurrent();
-    s.poopCounter = this.poopManager?.counter || 0;
-    s.poopCooldown = this.poopManager?.cooldown || 5;
-    s.coffeeBoost = this.coffeeBoostTimer || 0;
-    return s;
+    return {
+      score: this.score,
+      distance: this.distance,
+      beers: this.beers,
+      health: this.health.getCurrent(),
+      poopCounter: this.poopManager?.counter || 0,
+      poopCooldown: this.poopManager?.cooldown || 5,
+      coffeeBoost: this.coffeeBoostTimer || 0,
+    };
   }
 
   frame(timestamp) {
     if (!this.lastTime) this.lastTime = timestamp;
     const frameTime = timestamp - this.lastTime;
     if (frameTime > 0) this.recordFrameTime(frameTime);
-    // Cap deltaTime at 100 ms so a single frame skip (resize, GC, tab refocus)
-    // doesn't catapult the world forward — but allow more headroom than 0.034
-    // so a normal 60 Hz frame (16.7 ms) and a slightly delayed frame (33 ms)
-    // both feel smooth.
-    const deltaTime = Math.min(frameTime / 1000, 0.1);
+    const deltaTime = Math.min(frameTime / 1000, 0.034);
     this.lastTime = timestamp;
 
     this.update(deltaTime);
@@ -268,10 +236,7 @@ export class Game {
       popup.age += deltaTime;
       popup.y -= 34 * deltaTime;
     }
-    // Swap-and-pop to avoid allocating a new array every frame.
-    for (let i = this.popups.length - 1; i >= 0; i -= 1) {
-      if (this.popups[i].age >= 0.85) this.popups.splice(i, 1);
-    }
+    this.popups = this.popups.filter((popup) => popup.age < 0.85);
 
     this.ui.update(this.snapshot());
 
@@ -280,10 +245,6 @@ export class Game {
   }
 
   getGroundY() {
-    return this.cachedGroundY;
-  }
-
-  computeGroundY() {
     // Where the scene's authored ground line lands on screen. The scene is
     // drawn at native scale anchored to the top, so scene.groundY=595 in
     // scene pixels lands here in viewport pixels. The player must stay above
@@ -302,68 +263,13 @@ export class Game {
       const response = await fetch("./assets/backgrounds/background.parallax.json");
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const project = await response.json();
-      // Decode foreground assets first so the playable scene is visible
-      // within the first frame or two; far/mid layers can land a moment
-      // later. The sky / sun / clouds layers are not used by the game
-      // (see docs/parallax-bug-sun-clouds.md) so we deprioritise them.
-      const SCENE_LAYER_PRIORITY = [
-        "road", "cafe", "house", "hedge", "lamps", "trees",
-        "06c-houses-front", "06b-houses-middle", "06a-houses-back",
-        "mid", "far",
-      ];
-      const layerByAssetId = new Map();
-      for (const layer of project.scene.layers) {
-        for (const object of layer.objects || []) {
-          if (!layerByAssetId.has(object.assetId)) {
-            layerByAssetId.set(object.assetId, layer.id);
-          }
-        }
-      }
-      const order = (asset) => {
-        const layerId = layerByAssetId.get(asset.id);
-        const idx = SCENE_LAYER_PRIORITY.indexOf(layerId);
-        return idx === -1 ? SCENE_LAYER_PRIORITY.length : idx;
-      };
-      const sortedAssets = [...project.assets].sort((a, b) => order(a) - order(b));
-      // Decode in chunks of 4 at a time so we don't spike 34 simultaneous
-      // decode jobs — that would jank the first paint hard on phones.
-      const CONCURRENCY = 4;
-      for (let i = 0; i < sortedAssets.length; i += CONCURRENCY) {
-        const batch = sortedAssets.slice(i, i + CONCURRENCY);
-        await Promise.all(batch.map(async (asset) => {
-          if (this.parallaxImages.has(asset.id)) return;
-          const image = new Image();
-          image.src = asset.data;
-          await image.decode();
-          this.parallaxImages.set(asset.id, image);
-        }));
-      }
+      await Promise.all(project.assets.map(async (asset) => {
+        const image = new Image();
+        image.src = asset.data;
+        await image.decode();
+        this.parallaxImages.set(asset.id, image);
+      }));
       this.parallaxProject = project;
-      // Pre-build the scene we hand to ParallaxRuntime every frame. Drops:
-      //   - sky layer (game paints its own viewport gradient)
-      //   - sun and clouds (loop-only export puts them only in part 1 of the
-      //     PNG, so when the parallax phase crosses the 4096→4500 boundary the
-      //     viewport shows an empty sky strip — see docs/parallax-bug-sun-clouds.md)
-      //   - any SKIP_LAYER_IDS duplicates
-      // The remaining layers (far, mid, houses, road, ...) all wrap correctly.
-      const scene = project.scene;
-      const sceneForRuntime = {
-        ...scene,
-        layers: scene.layers
-          .filter((layer) =>
-            layer.id !== "sky" &&
-            layer.id !== "sun" &&
-            layer.id !== "clouds" &&
-            !SKIP_LAYER_IDS.has(layer.id)
-          )
-          .map((layer) => {
-            return { ...layer };
-          }),
-      };
-      this.parallaxSceneCache = sceneForRuntime;
-      // The scene changed — refresh ground cache so the player doesn't spawn
-      // or rest on a fallback ground line.
-      this.cachedGroundY = this.computeGroundY();
     } catch (error) {
       console.warn("[parallax] failed to load:", error);
     }
@@ -373,8 +279,30 @@ export class Game {
     const context = this.context;
     context.clearRect(0, 0, this.width, this.height);
 
-    if (this.parallaxSceneCache && globalThis.ParallaxRuntime) {
+    if (this.parallaxProject && globalThis.ParallaxRuntime) {
       const scene = this.parallaxProject.scene;
+      // Parallax depth is per-layer; ParallaxRuntime applies the same formula
+      // the editor uses: offset = cameraX * layer.parallax, with copies of each
+      // object placed at every (object.x + k * loopLength). No per-frame X edits,
+      // no depth-scaled image sizes — the renderer scales the whole scene once.
+      const sceneWithDepth = {
+        ...scene,
+        layers: scene.layers.map((layer) => {
+          if (SKIP_LAYER_IDS.has(layer.id)) return layer;
+          // Tone down clouds + sun so zoom-out doesn't crowd the upper sky.
+          const opacity = layer.id === "clouds" ? Math.min(layer.opacity ?? 1, 0.45)
+                       : layer.id === "sun"    ? Math.min(layer.opacity ?? 1, 0.6)
+                       : layer.opacity;
+          const parallax = BACKGROUND_DEPTHS[layer.id] ?? (layer.parallax || 0);
+          return { ...layer, parallax, opacity };
+        }),
+      };
+      // Sky is a viewport-space gradient below the parallax scene. Excluding
+      // the exported sky bitmap keeps it fixed and prevents zoom seams.
+      const sceneWithoutSky = {
+        ...sceneWithDepth,
+        layers: sceneWithDepth.layers.filter((layer) => layer.id !== "sky"),
+      };
       const groundY = this.getGroundY();
 
       const zoom =
@@ -391,8 +319,11 @@ export class Game {
       context.clip();
 
       // Nebo popunjava prostor koji se otkrije odzumiranjem.
-      // Gradient is built once in resize() and reused every frame.
-      context.fillStyle = this.cachedSkyGradient;
+      const sky = context.createLinearGradient(0, 0, 0, this.height);
+      sky.addColorStop(0, "#c7cbca");
+      sky.addColorStop(0.55, "#aeb4b5");
+      sky.addColorStop(1, "#858c8e");
+      context.fillStyle = sky;
       context.fillRect(0, 0, this.width, this.height);
 
       // Podloga ispod razine tla.
@@ -417,7 +348,7 @@ export class Game {
 
       globalThis.ParallaxRuntime.render(
         context,
-        this.parallaxSceneCache,
+        sceneWithoutSky,
         this.parallaxImages,
         this.worldX,
         {
@@ -451,7 +382,11 @@ export class Game {
   }
 
   drawSky(context) {
-    context.fillStyle = this.cachedSkyGradient;
+    const gradient = context.createLinearGradient(0, 0, 0, this.height);
+    gradient.addColorStop(0, "#c7cbca");
+    gradient.addColorStop(0.55, "#aeb4b5");
+    gradient.addColorStop(1, "#858c8e");
+    context.fillStyle = gradient;
     context.fillRect(0, 0, this.width, this.height);
 
     context.fillStyle = "rgba(242, 240, 225, 0.38)";

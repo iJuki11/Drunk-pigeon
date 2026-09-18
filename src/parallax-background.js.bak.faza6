@@ -1,0 +1,27 @@
+// Single source of truth for parallax scene configuration.
+// game.js reads these constants and hands them to the editor's ParallaxRuntime.
+// This file no longer contains a renderer class — the runtime in
+// assets/backgrounds/renderer.js is the canonical renderer.
+
+export const ZOOM_BACKGROUND = 0.5;
+
+export const BACKGROUND_DEPTHS = Object.freeze({
+  sky: 0,
+  sun: 0.35,
+  clouds: 0.45,
+  far: 0.62,
+  mid: 0.74,
+  "06a-houses-back": 0.84,
+  "06b-houses-middle": 0.90,
+  "06c-houses-front": 0.96,
+  house: 1,
+  trees: 0.95,
+  cafe: 1,
+  hedge: 0.95,
+  lamps: 0.95,
+  road: 1,
+});
+
+export const SKIP_LAYER_IDS = new Set([
+  "cfb105b7-44de-4982-a88c-84f13653309b",
+]);
