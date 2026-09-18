@@ -4,11 +4,7 @@ import { AssetLoader } from "./assets.js";
 import { AudioBus } from "./audio.js";
 import { Health } from "./health.js";
 import { PrsanManager, PadobranManager } from "./enemies.js";
-import { CollisionEffects, COLLISION_EFFECT_DURATION } from "./collision_effects.js";
-// PoopManager removed — the poop mechanic is no longer part of the game.
-// To re-enable, restore the import below and the construction/update/draw
-// lines that were deleted alongside it.
-// import { PoopManager } from "./poop.js";
+import { PoopManager } from "./poop.js";
 // Toni and Decki are temporarily disabled — see commented lines below
 // to re-enable. PrsanManager is the only active enemy for now.
 // import { ToniManager } from "./enemies.js";
@@ -52,24 +48,19 @@ export class Game {
     this.cachedGroundY = 0;
     this.cachedSkyGradient = null;
     this.cachedSkyKey = "";
-    this.coffees = 0;
     // Reused every frame so we don't allocate a snapshot object per update.
     this.uiSnapshot = {
       score: 0,
+      distance: 0,
       beers: 0,
-      coffees: 0,
       health: 0,
+      poopCounter: 0,
+      poopCooldown: 5,
+      coffeeBoost: 0,
     };
     this.collectibles = new CollectibleManager();
     this.player = new Player(90, 300);
     this.health = new Health();
-    this.health.isInvincible = () => {
-      // Read the player's invincibility window directly so even damage
-      // funnels that bypass PrsanManager (future enemies) respect it.
-      const now = performance.now() / 1000;
-      return typeof this.player?.isInvincible === "function" && this.player.isInvincible(now);
-    };
-    this.collisionEffects = new CollisionEffects();
     this.audio = new AudioBus();
     this.assets = new AssetLoader();
     this.assets.preload([
@@ -81,33 +72,9 @@ export class Game {
     // the imports above and the construction/reset/update/draw blocks below.
     // this.toniManager = new ToniManager(this.assets, this.audio, this.health);
     // this.deckiManager = new DeckiManager(this.assets, this.audio);
-    this.prsanManager = new PrsanManager({
-      audio: this.audio,
-      health: this.health,
-      // Called the moment a prsan hit is accepted. Triggers the visual
-      // burst, the hit sound, and arms the 2-second invincibility window.
-      onPlayerHit: (x, y, config) => {
-        const now = performance.now() / 1000;
-        // Anchor the collision burst on the player's beak (a touch to the
-        // right of centre) so the effect reads as "right where the plane
-        // hit you" rather than somewhere on the airframe.
-        const impactX = this.player.x + 22;
-        const impactY = this.player.y - 2;
-        this.collisionEffects.trigger(impactX, impactY, {
-          // Scale up so the burst almost swallows the bird — sells the hit.
-          scale: (config?.scale ?? 0.8) * 2.2,
-          damage: config?.damage ?? 1,
-        });
-        this.audio.playHit();
-        // Open the invincibility window now but defer the actual blink
-        // until the very tail of the collision burst, so the player keeps
-        // solid for the dramatic hit moment and starts blinking soon
-        // after. Tunable here — lower = earlier blink, higher = later.
-        this.player.grantInvincibility(now, 2, 0.15);
-      },
-    });
+    this.prsanManager = new PrsanManager({ audio: this.audio, health: this.health });
     this.padobranManager = new PadobranManager({ minInterval: 5, maxInterval: 15 });
-    // this.poopManager = new PoopManager(this.audio, (x, y) => { this.scorePenalty -= 200; this.popups.push({ x, y, age: 0, value: "-200", negative: true }); });
+    this.poopManager = new PoopManager(this.audio, (x, y) => { this.scorePenalty -= 200; this.popups.push({ x, y, age: 0, value: "-200", negative: true }); });
 
     this.parallaxProject = null;
     this.parallaxImages = new Map();
@@ -159,25 +126,30 @@ export class Game {
 
   start() {
     this.health.reset();
+    this.distance = 0;
     this.beers = 0;
-    this.coffees = 0;
-    this.scorePenalty = 0;
+    this.score = 0;
+    this.speed = 170;
+    this.worldX = 0;
     this.popups = [];
-    this.collisionEffects.clear();
+    this.scorePenalty = 0;
+    this.coffeeCollected = 0;
+    this.coffeeBoostTimer = 0;
+    this.frameTimes = [];
+    this.frameTiming = { average: 0, stdDev: 0, samples: 0, withinBudget: true };
+    this.frameTimingWarningIssued = false;
     this.collectibles.reset();
     // this.toniManager.reset();
     // this.deckiManager.reset();
     this.prsanManager.reset();
     this.padobranManager.reset();
-    // this.poopManager.reset();
+    this.poopManager.reset();
     this.player = new Player(this.width * 0.25, this.height * 0.45);
     this.player.flap();
     this.state = STATE.PLAYING;
     this.input.setEnabled(true);
     this.ui.update(this.snapshot());
     this.ui.showPlaying();
-    // Kick off background music (loops until stopMusic is called).
-    this.audio.playMusic("./assets/sounds/gogomuck.mp3", 0.05);
     this.lastTime = performance.now();
   }
 
@@ -186,8 +158,6 @@ export class Game {
     this.state = STATE.GAME_OVER;
     this.input.setEnabled(false);
     this.audio.playGameOver();
-    this.audio.stopMusic();
-    this.audio.stopAirplane();
     this.ui.showGameOver(this.snapshot());
   }
 
@@ -195,8 +165,6 @@ export class Game {
     if (this.state !== STATE.PLAYING) return;
     this.state = STATE.PAUSED;
     this.pauseTimestamp = performance.now();
-    this.audio.stopMusic();
-    this.audio.stopAirplane();
     this.ui.showPaused();
   }
 
@@ -204,7 +172,6 @@ export class Game {
     if (this.state !== STATE.PAUSED) return;
     this.state = STATE.PLAYING;
     this.lastTime = performance.now();
-    this.audio.playMusic("./assets/sounds/gogomuck.mp3", 0.05);
     this.ui.hidePaused();
   }
 
@@ -220,10 +187,13 @@ export class Game {
     // Mutate the cached object in place — the UI only reads fields, and
     // allocating a fresh one per frame is wasted GC pressure at 60 fps.
     const s = this.uiSnapshot;
-    s.score = this.beers + this.coffees;
+    s.score = this.score;
+    s.distance = this.distance;
     s.beers = this.beers;
-    s.coffees = this.coffees;
     s.health = this.health.getCurrent();
+    s.poopCounter = this.poopManager?.counter || 0;
+    s.poopCooldown = this.poopManager?.cooldown || 5;
+    s.coffeeBoost = this.coffeeBoostTimer || 0;
     return s;
   }
 
@@ -277,35 +247,36 @@ export class Game {
 
     this.worldX += this.speed * deltaTime;
 
-    if (this.input.consumeFlap()) { this.player.flap(); /* poop removed */ }
+    if (this.input.consumeFlap()) { this.player.flap(); this.poopManager.onFlap(this.player.x, this.player.y); }
 
     this.player.update(deltaTime);
-    // Speed still ramps with distance — distance is no longer shown in the
-    // HUD but it still drives how fast the world scrolls.
     this.speed = Math.min(255, 170 + this.distance * 0.05);
     this.distance += this.speed * deltaTime * 0.055;
+    this.score = Math.floor(this.distance) + this.beers * 100 + this.scorePenalty;
 
     const groundY = this.getGroundY();
     this.collectibles.update(deltaTime, this.speed, this.width, this.height, groundY);
     // this.deckiManager.update(deltaTime, this.width, groundY);
-    // this.poopManager.update(deltaTime, this.height, [] /* was this.deckiManager.activeItems() */);
+    this.poopManager.update(deltaTime, this.height, [] /* was this.deckiManager.activeItems() */);
     // this.toniManager.update(deltaTime, this.width, this.height, this.player);
     this.prsanManager.update(deltaTime, this.width, this.height, this.player);
     this.padobranManager.update(deltaTime, this.width, this.height);
-    this.collisionEffects.update(deltaTime);
+    if (this.coffeeBoostTimer > 0) { this.coffeeBoostTimer = Math.max(0, this.coffeeBoostTimer - deltaTime); if (!this.coffeeBoostTimer) { this.poopManager.cooldown = 5; this.coffeeCollected = 0; } }
     const collectedItems = this.collectibles.collect(this.player.getBounds());
 
     for (const item of collectedItems) {
       if (item.type === "coffee") {
         this.audio.playCoffee();
-        this.coffees += 1;
-        this.popups.push({ x: item.x, y: item.y, age: 0, value: "+1" });
+        this.coffeeCollected += 1;
+        this.scorePenalty += 25;
+        if (this.coffeeCollected >= 5) { this.poopManager.cooldown = 3; this.coffeeBoostTimer = 10; }
+        this.popups.push({ x: item.x, y: item.y, age: 0, value: "+25" });
       } else {
         this.beers += 1;
         this.audio.playBeer();
-        this.popups.push({ x: item.x, y: item.y, age: 0, value: "+1" });
+        this.popups.push({ x: item.x, y: item.y, age: 0, value: "+100" });
       }
-      // snapshot() recomputes score from beers + coffees, no manual update.
+      this.score = Math.floor(this.distance) + this.beers * 100 + this.scorePenalty;
     }
 
     for (const popup of this.popups) {
@@ -487,18 +458,11 @@ export class Game {
 
     this.collectibles.draw(context);
     // this.deckiManager.draw(context);
-    // this.poopManager.draw(context);
+    this.poopManager.draw(context);
     // this.toniManager.draw(context);
     this.prsanManager.draw(context);
     this.padobranManager.draw(context);
-    // Render the player only on flash-visible frames while invincible; the
-    // collision effects overlay sits between the enemy and the player so
-    // the burst reads on top of the plane and underneath the recoil.
-    const drawNow = performance.now() / 1000;
-    if (this.player.shouldDraw(drawNow)) {
-      this.player.draw(context);
-    }
-    this.collisionEffects.draw(context);
+    this.player.draw(context);
     this.drawPopups(context);
     this.drawVignette(context);
   }

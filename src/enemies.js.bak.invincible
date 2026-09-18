@@ -40,7 +40,7 @@ export class ToniManager {
  * and reading them inside `spawnOne` / the active-instance branch.
  */
 export class PrsanManager {
-  constructor({ audio, health, recipes = PRSAN_RECIPES, minInterval = 10, maxInterval = 15, spawnMarginTop = 80, spawnMarginBottom = 80, onPlayerHit } = {}) {
+  constructor({ audio, health, recipes = PRSAN_RECIPES, minInterval = 10, maxInterval = 15, spawnMarginTop = 80, spawnMarginBottom = 80 } = {}) {
     this.audio = audio;
     this.health = health;
     this.recipes = recipes;
@@ -48,10 +48,6 @@ export class PrsanManager {
     this.maxInterval = maxInterval;
     this.spawnMarginTop = spawnMarginTop;
     this.spawnMarginBottom = spawnMarginBottom;
-    // Optional: invoked with the enemy world-space coords the moment a hit
-    // is accepted. Game.js wires this to collision effects, invincibility,
-    // and other side-effects so this manager stays free of cross-concerns.
-    this.onPlayerHit = typeof onPlayerHit === "function" ? onPlayerHit : null;
     this.instances = [];
     this.timer = 0;
     this.scheduleNext();
@@ -61,9 +57,6 @@ export class PrsanManager {
     this.instances = [];
     this.timer = 0;
     this.scheduleNext();
-    // Stop the airplane SFX in case an instance was active when the
-    // game restarted; without this the sound would keep looping.
-    this.audio?.stopAirplane?.();
   }
 
   scheduleNext() {
@@ -144,9 +137,7 @@ export class PrsanManager {
 
     // Collision: AABB overlap with the player hitbox.
     const playerBounds = player?.getBounds?.();
-    const nowSeconds = performance.now() / 1000;
-    const playerInvincible = typeof player?.canTakeDamage === "function" && !player.canTakeDamage(nowSeconds);
-    if (playerBounds && entry.damageCooldown === 0 && !playerInvincible) {
+    if (playerBounds && entry.damageCooldown === 0) {
       const e = entry.enemy.getBounds();
       const overlaps = !(
         e.right < playerBounds.left ||
@@ -156,12 +147,7 @@ export class PrsanManager {
       );
       if (overlaps) {
         this.health?.takeDamage?.(entry.config.damage ?? 1);
-        // Damage has been applied; start cooldown so a single collision
-        // doesn't drain the whole healthbar in one pass.
         entry.damageCooldown = 0.6;
-        // Fire the gameplay-side callback: visual effect, sound, and
-        // the 2-second player invincibility window live there.
-        this.onPlayerHit?.(entry.enemy.x, entry.enemy.y, entry.config);
         // eslint-disable-next-line no-console
         console.log("[prsan] hit player, damage=", entry.config.damage ?? 1);
       }

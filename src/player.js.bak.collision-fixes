@@ -19,56 +19,27 @@ export class Player {
     return nowSeconds >= this.invincibleUntil;
   }
 
-  // Apply the post-hit invincibility window. The actual *visual* flashing
-  // starts after `flashDelaySeconds` — by then the collision burst has
-  // already played out, so the bird keeps solid for that beat and only
-  // starts blinking once the burst is gone.
-  grantInvincibility(nowSeconds, durationSeconds = 2, flashDelaySeconds = 0) {
+  // Apply the 2-second post-hit invincibility window. The caller (game.js)
+  // should already have run the actual `health.takeDamage` mutation; this
+  // just arms the immunity window.
+  grantInvincibility(nowSeconds, durationSeconds = 2) {
     this.invincibleUntil = Math.max(this.invincibleUntil, nowSeconds + durationSeconds);
-    // Earliest moment we should start the blink phase. Stored so shouldDraw
-    // can decide whether to render the player at all.
-    this.invincibilityFlashStart = nowSeconds + Math.max(0, flashDelaySeconds);
   }
 
   isInvincible(nowSeconds) {
     return nowSeconds < this.invincibleUntil;
   }
 
+  // Compute current flash state. Call once per frame from draw().
   // Returns true if the player should be rendered this frame.
-  // Before the flash window starts (e.g. while the collision burst is
-  // playing out) we always render — invisible mid-burst looks like a bug.
-  // During the flash window we toggle visibility at ~12 Hz.
-  // After the window expires we always render again.
   shouldDraw(nowSeconds) {
-    if (nowSeconds < this.invincibleUntil) {
-      if (nowSeconds < (this.invincibilityFlashStart || 0)) {
-        // Still in the warm-up; render solid.
-        if (!this.flashVisible) this.flashVisible = true;
-        return true;
-      }
-      // Blink at ~12 Hz during the actual flash window.
-      this.flashVisible = Math.floor((nowSeconds * 12) % 2) === 0;
-      return this.flashVisible;
+    if (!this.isInvincible(nowSeconds)) {
+      if (!this.flashVisible) this.flashVisible = true;
+      return true;
     }
-    if (!this.flashVisible) this.flashVisible = true;
-    return true;
-  }
-
-  // Opacity (0..1) for the player during the invincibility flash window.
-  // Before the window starts, or after it ends, we render fully opaque.
-  // During the blink we oscillate between `peakOpacity` (default 1.0) and
-  // `troughOpacity` (default 0.3) using a sine wave at the same 12 Hz rate
-  // as the binary blink, so the transition feels smoother than on/off.
-  getOpacity(nowSeconds, { peakOpacity = 1.0, troughOpacity = 0.3, hz = 12 } = {}) {
-    if (nowSeconds < this.invincibleUntil) {
-      if (nowSeconds >= (this.invincibilityFlashStart || 0)) {
-        // Smooth sine-based fade; 1.0 → 0.3 → 1.0 → 0.3 …
-        const t = (nowSeconds * hz * Math.PI * 2) % (Math.PI * 2);
-        const sine01 = (Math.sin(t) + 1) / 2; // 0..1
-        return troughOpacity + (peakOpacity - troughOpacity) * sine01;
-      }
-    }
-    return peakOpacity;
+    // Blink at ~6 Hz while invincible.
+    this.flashVisible = Math.floor((nowSeconds * 6) % 2) === 0;
+    return this.flashVisible;
   }
 
   reset(x, y) {
@@ -78,7 +49,6 @@ export class Player {
     this.rotation = 0;
     this.wingPhase = 0;
     this.invincibleUntil = 0;
-    this.invincibilityFlashStart = 0;
     this.flashVisible = true;
   }
 
@@ -98,13 +68,10 @@ export class Player {
 
   getBounds() {
     return {
-      // Shrunken hitbox — gives the player a forgiving feel. The visible
-      // sprite is 56x48 but the actual collision shape is ~36% narrower
-      // and ~33% shorter than that, so glancing brushes don't count as hits.
-      left: this.x - this.width * 0.32,
-      right: this.x + this.width * 0.32,
-      top: this.y - this.height * 0.30,
-      bottom: this.y + this.height * 0.30,
+      left: this.x - this.width * 0.38,
+      right: this.x + this.width * 0.38,
+      top: this.y - this.height * 0.36,
+      bottom: this.y + this.height * 0.38,
     };
   }
 

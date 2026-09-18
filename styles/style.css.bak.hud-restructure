@@ -56,43 +56,14 @@ button {
 .hud {
   position: absolute;
   z-index: 5;
-  bottom: max(0.7rem, env(safe-area-inset-bottom));
-  left: 0.7rem;
-  right: 0.7rem;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  left: 1rem;
+  right: 1rem;
   display: grid;
-  grid-template-columns: auto 1fr 1fr;
-  align-items: stretch;
-  gap: 0.4rem;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: end;
+  gap: 0.5rem;
   pointer-events: none;
-}
-
-.hud-block {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  min-height: 2.7rem;
-  padding: 0 0.7rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 0.85rem;
-  background: rgba(30, 32, 34, 0.78);
-  box-shadow: 0 0.3rem 0.85rem rgba(0, 0, 0, 0.16);
-  backdrop-filter: blur(8px);
-  color: var(--ink);
-  font-size: 0.95rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  overflow: visible;
-}
-
-.hud-beer,
-.hud-coffee {
-  justify-content: center;
-}
-
-.hud-health {
-  gap: 0.18rem;
-  padding: 0 0.5rem;
 }
 
 .hud[hidden],
@@ -165,22 +136,14 @@ button {
 .hud-score span,
 .results span {
   color: var(--muted);
-  font-size: 0.58rem;
+  font-size: 0.67rem;
   font-weight: 800;
   letter-spacing: 0.12em;
 }
 
 .hud-score strong {
   color: var(--ink);
-  font-size: 1.1rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-.hud-distance strong {
-  color: var(--gold);
-  font-size: 0.78rem;
-  font-weight: 800;
+  font-size: 1.35rem;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -209,8 +172,8 @@ button {
 }
 
 .health-heart {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 1.25rem;
+  height: 1.25rem;
   fill: #f06b62;
   stroke: #ffd6c9;
   stroke-width: 1.5;
@@ -222,106 +185,25 @@ button {
   transform: scale(0.72);
 }
 
-/* Beer mug icon — gold body, white foam head, handle on the right.
-   Sized to match the coffee cup next to it. */
-.beer-icon {
+.beer-dot {
   position: relative;
-  display: inline-block;
-  width: 1.2rem;
-  height: 1.5rem;
-  border: 0.16rem solid #fff0bd;
-  border-bottom: 0.16rem solid #fff0bd;
-  border-radius: 0.16rem 0.16rem 0.22rem 0.22rem;
-  background: linear-gradient(180deg, #ffd76b 0%, #f5b82e 60%, #d88912 100%);
-  box-shadow: inset 0 0.22rem 0 rgba(255, 255, 255, 0.45),
-              0 0 0.55rem rgba(245, 184, 46, 0.55);
+  width: 0.9rem;
+  height: 1.15rem;
+  border: 2px solid #fff0bd;
+  border-radius: 0.15rem 0.15rem 0.28rem 0.28rem;
+  background: var(--gold);
 }
-.beer-icon::before {
-  /* Foam head */
+
+.beer-dot::after {
   content: "";
   position: absolute;
-  top: -0.14rem;
-  left: -0.06rem;
-  right: -0.06rem;
-  height: 0.4rem;
-  background: #fff7da;
-  border-radius: 0.7rem 0.7rem 0.25rem 0.25rem / 0.7rem 0.7rem 0.25rem 0.25rem;
-}
-.beer-icon::after {
-  /* Handle */
-  content: "";
-  position: absolute;
-  top: 0.36rem;
-  right: -0.52rem;
-  width: 0.4rem;
-  height: 0.62rem;
-  border: 0.16rem solid #fff0bd;
+  top: 0.15rem;
+  right: -0.42rem;
+  width: 0.32rem;
+  height: 0.56rem;
+  border: 2px solid #fff0bd;
   border-left: 0;
-  border-radius: 0 0.32rem 0.32rem 0;
-}
-
-/* Coffee cup icon — matches the in-level drawCoffee() style:
-   a cream-white cup with a handle on the right, two steam wisps rising
-   above it, and the same warm gold glow as the beer. Sized to match
-   the beer mug (1.2 × 1.5 rem body). */
-.coffee-icon {
-  position: relative;
-  display: inline-block;
-  width: 1.2rem;
-  height: 1.5rem;
-  border: 0.14rem solid #ffffff;
-  border-radius: 0.22rem 0.22rem 0.32rem 0.32rem;
-  background: #ffffff;
-  /* Same warm gold glow as the beer / in-level coffee collectible. */
-  box-shadow: 0 0 0.55rem rgba(245, 184, 46, 0.55);
-  margin-top: 0.55rem; /* room for steam above */
-}
-
-/* Handle — small ear on the right side. */
-.coffee-icon::after {
-  content: "";
-  position: absolute;
-  top: 0.5rem;
-  right: -0.34rem;
-  width: 0.28rem;
-  height: 0.5rem;
-  border: 0.14rem solid #ffffff;
-  border-left: 0;
-  border-radius: 0 0.28rem 0.28rem 0;
-  background: transparent;
-}
-
-/* Steam — two thin wavy lines rising above the cup, drawn on a child
-   <span> so they can use ::before and ::after independently of the cup. */
-.coffee-steam {
-  position: absolute;
-  left: 50%;
-  top: -0.55rem;
-  width: 1rem;
-  height: 0.6rem;
-  margin-left: -0.5rem;
-  pointer-events: none;
-}
-.coffee-steam::before,
-.coffee-steam::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  width: 0.16rem;
-  height: 0.55rem;
-  border-radius: 0.16rem 0.16rem 0 0;
-  border: 0.1rem solid #ffffff;
-  border-bottom: 0;
-  background: transparent;
-}
-.coffee-steam::before {
-  left: 0.2rem;
-  height: 0.55rem;
-}
-.coffee-steam::after {
-  right: 0.2rem;
-  height: 0.45rem;
-  top: 0.05rem;
+  border-radius: 0 0.25rem 0.25rem 0;
 }
 
 .screen {
