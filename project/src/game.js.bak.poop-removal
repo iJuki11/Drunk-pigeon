@@ -4,11 +4,8 @@ import { AssetLoader } from "./assets.js";
 import { AudioBus } from "./audio.js";
 import { Health } from "./health.js";
 import { PrsanManager, PadobranManager } from "./enemies.js";
+import { PoopManager } from "./poop.js";
 import { CollisionEffects, COLLISION_EFFECT_DURATION } from "./collision_effects.js";
-// PoopManager removed — the poop mechanic is no longer part of the game.
-// To re-enable, restore the import below and the construction/update/draw
-// lines that were deleted alongside it.
-// import { PoopManager } from "./poop.js";
 // Toni and Decki are temporarily disabled — see commented lines below
 // to re-enable. PrsanManager is the only active enemy for now.
 // import { ToniManager } from "./enemies.js";
@@ -100,14 +97,12 @@ export class Game {
         });
         this.audio.playHit();
         // Open the invincibility window now but defer the actual blink
-        // until the very tail of the collision burst, so the player keeps
-        // solid for the dramatic hit moment and starts blinking soon
-        // after. Tunable here — lower = earlier blink, higher = later.
-        this.player.grantInvincibility(now, 2, 0.15);
+        // until the collision burst has finished playing out.
+        this.player.grantInvincibility(now, 2, COLLISION_EFFECT_DURATION);
       },
     });
     this.padobranManager = new PadobranManager({ minInterval: 5, maxInterval: 15 });
-    // this.poopManager = new PoopManager(this.audio, (x, y) => { this.scorePenalty -= 200; this.popups.push({ x, y, age: 0, value: "-200", negative: true }); });
+    this.poopManager = new PoopManager(this.audio, (x, y) => { this.scorePenalty -= 200; this.popups.push({ x, y, age: 0, value: "-200", negative: true }); });
 
     this.parallaxProject = null;
     this.parallaxImages = new Map();
@@ -169,7 +164,7 @@ export class Game {
     // this.deckiManager.reset();
     this.prsanManager.reset();
     this.padobranManager.reset();
-    // this.poopManager.reset();
+    this.poopManager.reset();
     this.player = new Player(this.width * 0.25, this.height * 0.45);
     this.player.flap();
     this.state = STATE.PLAYING;
@@ -277,7 +272,7 @@ export class Game {
 
     this.worldX += this.speed * deltaTime;
 
-    if (this.input.consumeFlap()) { this.player.flap(); /* poop removed */ }
+    if (this.input.consumeFlap()) { this.player.flap(); this.poopManager.onFlap(this.player.x, this.player.y); }
 
     this.player.update(deltaTime);
     // Speed still ramps with distance — distance is no longer shown in the
@@ -288,17 +283,20 @@ export class Game {
     const groundY = this.getGroundY();
     this.collectibles.update(deltaTime, this.speed, this.width, this.height, groundY);
     // this.deckiManager.update(deltaTime, this.width, groundY);
-    // this.poopManager.update(deltaTime, this.height, [] /* was this.deckiManager.activeItems() */);
+    this.poopManager.update(deltaTime, this.height, [] /* was this.deckiManager.activeItems() */);
     // this.toniManager.update(deltaTime, this.width, this.height, this.player);
     this.prsanManager.update(deltaTime, this.width, this.height, this.player);
     this.padobranManager.update(deltaTime, this.width, this.height);
     this.collisionEffects.update(deltaTime);
+    if (this.coffeeBoostTimer > 0) { this.coffeeBoostTimer = Math.max(0, this.coffeeBoostTimer - deltaTime); if (!this.coffeeBoostTimer) { this.poopManager.cooldown = 5; this.coffeeCollected = 0; } }
     const collectedItems = this.collectibles.collect(this.player.getBounds());
 
     for (const item of collectedItems) {
       if (item.type === "coffee") {
         this.audio.playCoffee();
         this.coffees += 1;
+        this.coffeeCollected += 1;
+        if (this.coffeeCollected >= 5) { this.poopManager.cooldown = 3; this.coffeeBoostTimer = 10; }
         this.popups.push({ x: item.x, y: item.y, age: 0, value: "+1" });
       } else {
         this.beers += 1;
@@ -487,7 +485,7 @@ export class Game {
 
     this.collectibles.draw(context);
     // this.deckiManager.draw(context);
-    // this.poopManager.draw(context);
+    this.poopManager.draw(context);
     // this.toniManager.draw(context);
     this.prsanManager.draw(context);
     this.padobranManager.draw(context);

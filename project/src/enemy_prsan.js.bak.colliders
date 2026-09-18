@@ -61,14 +61,9 @@ export class EnemyPrsan {
     const pose = this.getPose();
     const cos = Math.cos(pose.angle);
     const sin = Math.sin(pose.angle);
-    // Hitbox shrunk by 30% from the visible silhouette so the plane is
-    // fairer to dodge — only a solid intersection with the fuselage counts.
-    // The original sprite spans x ∈ [-71, 76], y ∈ [-99, 43]; we keep the
-    // same proportions but shrink both axes by 0.7.
-    const shrink = 0.7;
     const points = [[-71, -99], [76, -99], [76, 43], [-71, 43]].map(([x, y]) => {
-      x *= this.scale * this.direction * shrink;
-      y *= this.scale * shrink;
+      x *= this.scale * this.direction;
+      y *= this.scale;
       return { x: this.x + x * cos - y * sin, y: pose.y + x * sin + y * cos };
     });
     return {

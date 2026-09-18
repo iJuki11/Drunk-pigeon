@@ -6,35 +6,37 @@
     <meta name="theme-color" content="#25282b" />
     <meta
       name="description"
-      content="Doleti u Dido — mala mobile-first endless flyer igra o golubu koji leti iznad grada."
+      content="Pivski let — mala mobile-first endless flyer igra o golubu koji skuplja pive iznad grada."
     />
     <link
       rel="icon"
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2325282b'/%3E%3Cpath d='M18 15h25v34H18z' fill='%23f5b82e'/%3E%3Cpath d='M43 23h7v18h-7' fill='none' stroke='%23f5b82e' stroke-width='6'/%3E%3Cpath d='M18 15h25v8H18z' fill='%23fff4c4'/%3E%3C/svg%3E"
     />
-    <title>Doleti u Dido</title>
+    <title>Pivski let</title>
     <link rel="stylesheet" href="./styles/style.css" />
   </head>
   <body>
-    <main class="game-shell" aria-label="Doleti u Dido — endless flyer igra">
+    <main class="game-shell" aria-label="Pivski let — endless flyer igra">
       <canvas id="game-canvas" aria-label="Prostor igre"></canvas>
 
       <section id="hud" class="hud" aria-label="Rezultat igre" hidden>
-        <div class="hud-block hud-health" aria-label="Životi">
+        <div class="hud-score">
+          <span>REZULTAT</span>
+          <strong id="score-value">0</strong>
+        </div>
+        <div id="poop-indicator" class="poop-indicator" aria-label="Punjenje izmeta"><svg viewBox="0 0 24 24"><path d="M6 18c0-3 2-4 4-4-2-3 0-6 3-6 3 0 5 3 3 6 2 0 3 1 3 4z"/></svg><svg viewBox="0 0 24 24"><path d="M6 18c0-3 2-4 4-4-2-3 0-6 3-6 3 0 5 3 3 6 2 0 3 1 3 4z"/></svg><svg viewBox="0 0 24 24"><path d="M6 18c0-3 2-4 4-4-2-3 0-6 3-6 3 0 5 3 3 6 2 0 3 1 3 4z"/></svg><span id="coffee-boost" hidden></span></div>
+        <div class="hud-pill" aria-label="Skupljene pive">
+          <span class="beer-dot" aria-hidden="true"></span>
+          <strong id="beer-value">0</strong>
+        </div>
+        <div class="hud-pill hud-distance" aria-label="Prijeđena udaljenost">
+          <strong id="distance-value">0 m</strong>
+        </div>
+        <div class="hud-health" aria-label="Životi">
           <svg class="health-heart" viewBox="0 0 24 24" aria-label="Život 1"><path d="M12 21S3 15.2 3 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 9 2.5C21 15.2 12 21 12 21Z"/></svg>
           <svg class="health-heart" viewBox="0 0 24 24" aria-label="Život 2"><path d="M12 21S3 15.2 3 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 9 2.5C21 15.2 12 21 12 21Z"/></svg>
           <svg class="health-heart" viewBox="0 0 24 24" aria-label="Život 3"><path d="M12 21S3 15.2 3 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 9 2.5C21 15.2 12 21 12 21Z"/></svg>
-        </div>
-        <div class="hud-block hud-beer" aria-label="Skupljene pive">
-          <span class="beer-icon" aria-hidden="true"></span>
-          <strong id="beer-value">0</strong>
-        </div>
-        <div class="hud-block hud-coffee" aria-label="Skupljene kave">
-          <span class="coffee-icon" aria-hidden="true">
-            <span class="coffee-steam"></span>
-          </span>
-          <strong id="coffee-value">0</strong>
         </div>
       </section>
 
@@ -44,9 +46,9 @@
           <span class="mug"><span></span></span>
           <span class="wing wing-right"></span>
         </div>
-        <p class="eyebrow">&nbsp;</p>
-        <h1>Doleti<br />u Dido</h1>
-        <p class="screen-copy">Drži goluba u zraku.</p>
+        <p class="eyebrow">GRADSKA LETAČKA LINIJA</p>
+        <h1>PIVSKI<br />LET</h1>
+        <p class="screen-copy">Drži goluba u zraku.<br />Skupi svaku zlatnu kriglu.</p>
         <button id="play-button" class="primary-button" type="button">
           <span>IGRAJ</span>
           <span aria-hidden="true">→</span>
@@ -59,16 +61,16 @@
         <h2>KRAJ<br />RUNDE</h2>
         <div class="results" aria-label="Rezultati runde">
           <div class="result-main">
-            <span>UKUPNO</span>
+            <span>REZULTAT</span>
             <strong id="final-score">0</strong>
+          </div>
+          <div>
+            <span>UDALJENOST</span>
+            <strong id="final-distance">0 m</strong>
           </div>
           <div>
             <span>PIVE</span>
             <strong id="final-beers">0</strong>
-          </div>
-          <div>
-            <span>KAVE</span>
-            <strong id="final-coffees">0</strong>
           </div>
         </div>
         <button id="replay-button" class="primary-button" type="button">

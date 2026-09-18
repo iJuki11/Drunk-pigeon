@@ -1,4 +1,5 @@
 const HEALTH_HEART_COUNT = 3;
+const POOP_ICON_COUNT = 3;
 
 export class GameUI {
   constructor() {
@@ -8,19 +9,26 @@ export class GameUI {
     this.touchPrompt = document.querySelector("#touch-prompt");
     this.pauseOverlay = document.querySelector("#pause-overlay");
 
+    this.scoreValue = document.querySelector("#score-value");
     this.beerValue = document.querySelector("#beer-value");
-    this.coffeeValue = document.querySelector("#coffee-value");
+    this.distanceValue = document.querySelector("#distance-value");
     this.healthHearts = [...document.querySelectorAll(".health-heart")];
     this.finalScore = document.querySelector("#final-score");
+    this.finalDistance = document.querySelector("#final-distance");
     this.finalBeers = document.querySelector("#final-beers");
+    this.poopIcons = [...document.querySelectorAll("#poop-indicator svg")];
+    this.coffeeBoost = document.querySelector("#coffee-boost");
     this.playButton = document.querySelector("#play-button");
 
     // Cached DOM state — the UI is only written when a value actually
     // changes. Touching textContent or classList on every frame costs
     // real time on the main thread, especially with `toLocaleString`.
+    this.lastScoreText = "";
+    this.lastDistanceText = "";
     this.lastBeerText = "";
-    this.lastCoffeeText = "";
     this.lastHealth = -1;
+    this.lastPoopLevels = new Array(POOP_ICON_COUNT).fill(-1);
+    this.lastCoffeeBoost = -1;
   }
 
   bindActions(onPlay, onReplay) {
@@ -62,39 +70,59 @@ export class GameUI {
     this.pauseOverlay.hidden = true;
   }
 
-  showGameOver({ score, distance, beers, coffees }) {
+  showGameOver({ score, distance, beers }) {
     this.hidePaused();
     this.hud.hidden = true;
     this.touchPrompt.hidden = true;
     this.gameOverScreen.hidden = false;
-    if (this.finalScore) this.finalScore.textContent = score.toLocaleString("hr-HR");
-    if (this.finalDistance) this.finalDistance.textContent = `${Math.floor(distance)} m`;
-    if (this.finalBeers) this.finalBeers.textContent = beers.toString();
-    const finalCoffees = document.querySelector("#final-coffees");
-    if (finalCoffees) finalCoffees.textContent = (coffees ?? 0).toString();
+    this.finalScore.textContent = score.toLocaleString("hr-HR");
+    this.finalDistance.textContent = `${Math.floor(distance)} m`;
+    this.finalBeers.textContent = beers.toString();
     document.querySelector("#replay-button").focus({ preventScroll: true });
     // Reset cached values so the next update() repaints them.
+    this.lastScoreText = "";
+    this.lastDistanceText = "";
     this.lastBeerText = "";
-    this.lastCoffeeText = "";
     this.lastHealth = -1;
+    this.lastPoopLevels.fill(-1);
+    this.lastCoffeeBoost = -1;
   }
 
-  update({ beers, coffees = 0, health = HEALTH_HEART_COUNT }) {
+  update({ score, distance, beers, health = HEALTH_HEART_COUNT, poopCounter = 0, poopCooldown = 5, coffeeBoost = 0 }) {
+    const scoreText = score.toLocaleString("hr-HR");
+    if (scoreText !== this.lastScoreText) {
+      this.scoreValue.textContent = scoreText;
+      this.lastScoreText = scoreText;
+    }
+    const distanceText = `${Math.floor(distance)} m`;
+    if (distanceText !== this.lastDistanceText) {
+      this.distanceValue.textContent = distanceText;
+      this.lastDistanceText = distanceText;
+    }
     const beerText = beers.toString();
     if (beerText !== this.lastBeerText) {
       this.beerValue.textContent = beerText;
       this.lastBeerText = beerText;
-    }
-    const coffeeText = coffees.toString();
-    if (coffeeText !== this.lastCoffeeText) {
-      if (this.coffeeValue) this.coffeeValue.textContent = coffeeText;
-      this.lastCoffeeText = coffeeText;
     }
     if (health !== this.lastHealth) {
       for (let index = 0; index < this.healthHearts.length; index += 1) {
         this.healthHearts[index].classList.toggle("lost", index >= health);
       }
       this.lastHealth = health;
+    }
+    for (let index = 0; index < this.poopIcons.length; index += 1) {
+      const chargedLevel = poopCounter >= Math.ceil((index + 1) * poopCooldown / POOP_ICON_COUNT);
+      if (chargedLevel !== this.lastPoopLevels[index]) {
+        this.poopIcons[index].classList.toggle("charged", chargedLevel);
+        this.lastPoopLevels[index] = chargedLevel;
+      }
+    }
+    if (coffeeBoost !== this.lastCoffeeBoost) {
+      this.coffeeBoost.hidden = coffeeBoost <= 0;
+      if (coffeeBoost > 0) {
+        this.coffeeBoost.textContent = `KAVA BOOST: ${Math.ceil(coffeeBoost)} s`;
+      }
+      this.lastCoffeeBoost = coffeeBoost;
     }
   }
 }
