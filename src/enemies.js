@@ -1,4 +1,5 @@
 import { EnemyPrsan } from "./enemy_prsan.js";
+import { EnemyPrsanPadobran } from "./enemy_prsan_padobran.js";
 
 /**
  * Configuration recipes for prsan enemy variants. To add a new variant
@@ -141,6 +142,147 @@ export class PrsanManager {
         // eslint-disable-next-line no-console
         console.log("[prsan] hit player, damage=", entry.config.damage ?? 1);
       }
+    }
+  }
+
+  draw(ctx) {
+    for (const entry of this.instances) entry.enemy.draw(ctx);
+  }
+
+  activeItems() {
+    return this.instances.length;
+  }
+}
+
+/**
+ * Spawns prsan paratroopers that drift down from the top of the screen.
+ *
+ * Behaviour notes (matches the brief):
+ *   - one descent at a time, gated by `instances.length === 0`
+ *   - spawns every 5-15 seconds (configurable via min/maxInterval)
+ *   - spawns anywhere along the top edge (random x inside the viewport)
+ *   - descent speed and horizontal drift are randomised per spawn so each
+ *     jumper feels different — fast vs slow, drift left vs drift right
+ *   - the underlying EnemyPrsanPadobran already animates a swing (sin(t*1.65))
+ *     and pilot sway inside `getPose()`, so just translating `y` gives a
+ *     convincing parachute drift with no extra logic
+ *   - no collider / no damage / no scoring — visual only (per brief)
+ *   - despawns once it has clearly passed the bottom edge
+ */
+export class PadobranManager {
+  constructor({
+    minInterval = 5,
+    maxInterval = 15,
+    spawnPadding = 80,
+    // Pixels above the top edge where the paratrooper appears.
+    spawnAboveScreen = 60,
+    // Where on the canvas the descent ends — anything past this is gone.
+    despawnBelow = 80,
+    // Speed range (px/s) for the vertical drop.
+    minFallSpeed = 22,
+    maxFallSpeed = 42,
+    // Horizontal drift range (px/s) — gentle cross-wind.
+    minDrift = -14,
+    maxDrift = 14,
+    // Occasional gust strength (the sprite's puff() uses this).
+    gustChance = 0.35,
+    gustIntervalMin = 1.6,
+    gustIntervalMax = 4.2,
+  } = {}) {
+    this.minInterval = minInterval;
+    this.maxInterval = maxInterval;
+    this.spawnPadding = spawnPadding;
+    this.spawnAboveScreen = spawnAboveScreen;
+    this.despawnBelow = despawnBelow;
+    this.minFallSpeed = minFallSpeed;
+    this.maxFallSpeed = maxFallSpeed;
+    this.minDrift = minDrift;
+    this.maxDrift = maxDrift;
+    this.gustChance = gustChance;
+    this.gustIntervalMin = gustIntervalMin;
+    this.gustIntervalMax = gustIntervalMax;
+    this.instances = [];
+    this.timer = 0;
+    this.nextGust = 0;
+    this.scheduleNext();
+  }
+
+  reset() {
+    this.instances = [];
+    this.timer = 0;
+    this.nextGust = 0;
+    this.scheduleNext();
+  }
+
+  scheduleNext() {
+    const span = Math.max(0, this.maxInterval - this.minInterval);
+    this.nextSpawn = this.minInterval + Math.random() * span;
+  }
+
+  scheduleGust() {
+    const span = Math.max(0, this.gustIntervalMax - this.gustIntervalMin);
+    this.nextGust = this.gustIntervalMin + Math.random() * span;
+  }
+
+  spawnOne(width, height) {
+    const x = this.spawnPadding + Math.random() * Math.max(1, width - this.spawnPadding * 2);
+    const y = -this.spawnAboveScreen;
+    const fallSpeed = this.minFallSpeed + Math.random() * (this.maxFallSpeed - this.minFallSpeed);
+    const drift = this.minDrift + Math.random() * (this.maxDrift - this.minDrift);
+    const scale = 0.55 + Math.random() * 0.15;
+    const enemy = new EnemyPrsanPadobran(x, y, {
+      scale,
+      fallSpeed,
+      velocityX: drift,
+    });
+    this.instances.push({ enemy, drift, fallSpeed });
+    // eslint-disable-next-line no-console
+    console.log("[padobran] spawned", {
+      x: x.toFixed(0),
+      y: y.toFixed(0),
+      fallSpeed: fallSpeed.toFixed(1),
+      drift: drift.toFixed(1),
+    });
+  }
+
+  update(deltaTime, width, height /*, player */) {
+    if (!Number.isFinite(deltaTime) || deltaTime <= 0) return;
+
+    this.timer += deltaTime;
+
+    if (this.instances.length === 0) {
+      if (this.timer >= this.nextSpawn) {
+        this.timer = 0;
+        this.scheduleNext();
+        this.scheduleGust();
+        this.spawnOne(width, height);
+      }
+      return;
+    }
+
+    const entry = this.instances[0];
+    entry.enemy.update(deltaTime);
+
+    // Apply a random gust now and then — random push, decaying via the sprite's
+    // own gust field (gust *= exp(-dt*1.5) inside EnemyPrsanPadobran.update()).
+    this.nextGust -= deltaTime;
+    if (this.nextGust <= 0) {
+      if (Math.random() < this.gustChance) {
+        const strength = (Math.random() < 0.5 ? -1 : 1) * (0.4 + Math.random() * 1.1);
+        entry.enemy.puff(strength);
+      }
+      this.scheduleGust();
+    }
+
+    // Despawn once the parachute clearly clears the bottom edge.
+    if (entry.enemy.y > height + this.despawnBelow) {
+      this.instances.shift();
+      return;
+    }
+
+    // Also despawn if a strong sideways drift pushes them well off-screen.
+    if (entry.enemy.x < -150 || entry.enemy.x > width + 150) {
+      this.instances.shift();
     }
   }
 
