@@ -1,0 +1,14 @@
+
+cd ~/Documents/Hermes_gameDevelop
+git subtree split --prefix=project -b deploy
+git push origin deploy:main --force
+git checkout master
+git branch -D deploy
+
+
+
+
+
+
+
+cd ~/Documents/Hermes_gameDevelop/project && python3 -m http.server 8080
