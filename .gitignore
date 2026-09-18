@@ -1,2 +1,18 @@
-.DS_Store
-.opencode
+# Osobne biljeske i AI alati
+.hermes.md
+.opencode/
+CURRENT_PLAN.md
+DECISIONS.md
+PROJECT_STATE.md
+NALAZI.md
+editor/
+
+# Nepotrebno za live stranicu
+project/docs/
+project/tests/
+
+# Backup fajlovi
+*.bak.faza*
+
+# Sistemski fajlovi
+**/.DS_Store
