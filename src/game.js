@@ -3,9 +3,12 @@ import { CollectibleManager } from "./collectibles.js";
 import { AssetLoader } from "./assets.js";
 import { AudioBus } from "./audio.js";
 import { Health } from "./health.js";
-import { ToniManager } from "./enemies.js";
+import { PrsanManager } from "./enemies.js";
 import { PoopManager } from "./poop.js";
-import { DeckiManager } from "./deckis.js";
+// Toni and Decki are temporarily disabled — see commented lines below
+// to re-enable. PrsanManager is the only active enemy for now.
+// import { ToniManager } from "./enemies.js";
+// import { DeckiManager } from "./deckis.js";
 import { SKIP_LAYER_IDS, ZOOM_BACKGROUND } from "./parallax-background.js";
 
 const CITY_WORLD_LENGTH = 4500;
@@ -65,8 +68,11 @@ export class Game {
       { id: "toni-shoot", src: "./assets/images/custom/toni_shoot.png" },
       { id: "decki", src: "./assets/images/custom/decki.png" },
     ]);
-    this.toniManager = new ToniManager(this.assets, this.audio, this.health);
-    this.deckiManager = new DeckiManager(this.assets, this.audio);
+    // Toni and Decki are temporarily disabled. Re-enable by uncommenting
+    // the imports above and the construction/reset/update/draw blocks below.
+    // this.toniManager = new ToniManager(this.assets, this.audio, this.health);
+    // this.deckiManager = new DeckiManager(this.assets, this.audio);
+    this.prsanManager = new PrsanManager({ audio: this.audio, health: this.health });
     this.poopManager = new PoopManager(this.audio, (x, y) => { this.scorePenalty -= 200; this.popups.push({ x, y, age: 0, value: "-200", negative: true }); });
 
     this.parallaxProject = null;
@@ -87,6 +93,10 @@ export class Game {
 
     this.resize();
     this.ui.showStart();
+    // DEBUG ONLY: expose game for console inspection. Safe to leave in —
+    // it does not affect gameplay and the only side effect is a single
+    // property on window.
+    if (typeof window !== "undefined") window.__game = this;
     requestAnimationFrame(this.frame);
   }
 
@@ -128,8 +138,9 @@ export class Game {
     this.frameTiming = { average: 0, stdDev: 0, samples: 0, withinBudget: true };
     this.frameTimingWarningIssued = false;
     this.collectibles.reset();
-    this.toniManager.reset();
-    this.deckiManager.reset();
+    // this.toniManager.reset();
+    // this.deckiManager.reset();
+    this.prsanManager.reset();
     this.poopManager.reset();
     this.player = new Player(this.width * 0.25, this.height * 0.45);
     this.player.flap();
@@ -243,9 +254,10 @@ export class Game {
 
     const groundY = this.getGroundY();
     this.collectibles.update(deltaTime, this.speed, this.width, this.height, groundY);
-    this.deckiManager.update(deltaTime, this.width, groundY);
-    this.poopManager.update(deltaTime, this.height, this.deckiManager.activeItems());
-    this.toniManager.update(deltaTime, this.width, this.height, this.player);
+    // this.deckiManager.update(deltaTime, this.width, groundY);
+    this.poopManager.update(deltaTime, this.height, [] /* was this.deckiManager.activeItems() */);
+    // this.toniManager.update(deltaTime, this.width, this.height, this.player);
+    this.prsanManager.update(deltaTime, this.width, this.height, this.player);
     if (this.coffeeBoostTimer > 0) { this.coffeeBoostTimer = Math.max(0, this.coffeeBoostTimer - deltaTime); if (!this.coffeeBoostTimer) { this.poopManager.cooldown = 5; this.coffeeCollected = 0; } }
     const collectedItems = this.collectibles.collect(this.player.getBounds());
 
@@ -442,9 +454,10 @@ export class Game {
     }
 
     this.collectibles.draw(context);
-    this.deckiManager.draw(context);
+    // this.deckiManager.draw(context);
     this.poopManager.draw(context);
-    this.toniManager.draw(context);
+    // this.toniManager.draw(context);
+    this.prsanManager.draw(context);
     this.player.draw(context);
     this.drawPopups(context);
     this.drawVignette(context);
