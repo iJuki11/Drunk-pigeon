@@ -49,6 +49,60 @@ nigdje dokumentirani ovdje ne navode se.
 - **`GameUI`** u `ui.js` manipulira isključivo DOM-om (HUD + ekrani)
   preko ID-eva iz `index.html`.
 
+## 2026-09-16 — Pause/Resume mehanizam
+
+- **Tipka:** `Escape` je primarna, `P` je alias. Obje rade kao toggle
+  i ignoziraju `event.repeat` (držanje ne šalje više toggleova).
+- **`STATE.PAUSED`** je zaseban state u enumu, ne flag.
+- **One-shot signal:** `pauseRequested` je odvojeni boolean koji
+  `consumePause()` čita jednom i resetira — tako input callback ne
+  mora znati za game state, a game loop čita kad je spreman.
+- **`lastTime` reset na resume:** `resume()` postavlja
+  `lastTime = performance.now()` da prvi delta nakon nastavka bude
+  ~0, ne "cijelo vrijeme pauze". Sprječava player da odleti preko
+  ekrana ako je pauza trajala satima.
+- **Update-during-pause:** kad je `STATE.PAUSED`, preskače se
+  `Player.update()` i `worldX` inkrement ali frame se i dalje crta
+  — korisnik vidi scenu smrznutu ispod overlay-a.
+- **Pauza izvan `PLAYING` je no-op:** START i GAME_OVER ekrani
+  ne reagiraju na Escape/P — toggle radi samo dok je runda aktivna.
+- **Pauza overlay je DOM (ne canvas):** full-screen `div` u
+  `index.html`, stiliziran u `styles/style.css`. Izolira UI prikaz
+  od game loopa, ne troši canvas draw pozive, i nasljeđuje postojeći
+  dizajn jezik ostalih ekrana.
+- **README:** Lokalno pokretanje eksplicitno upozorava da se
+  `index.html` NE smije otvarati dvoklikom jer browser blokira
+  ES module na `file://` originu. Pokretanje ide kroz
+  `python3 -m http.server 8080`.
+
+## 2026-09-17 — Background integracija (ParallaxRuntime)
+
+- **Format:** `scena-parallax` v1, eksport iz parallax editora
+  (zaseban od starih `parallax-city/manifest.json` formata).
+  Sadrži `scene` (canvas/groundY/loop/layers[]), `assets[]` (PNG-ovi
+  kao data URI), `rendering.rendererSource` (referentni renderer
+  kod).
+- **Loader:** Renderer dolazi kao `assets/backgrounds/renderer.js`
+  (CommonJS/browser UMD-style), izložen kao `globalThis.ParallaxRuntime`.
+  Učitan preko `<script src="./assets/backgrounds/renderer.js">` u
+  `index.html` (prije ESM `<script type="module" src="./src/main.js">`)
+  jer CommonJS `module.exports` nije kompatibilan s dinamičkim
+  `import()`.
+- **API:** `ParallaxRuntime.render(ctx, scene, images, cameraX, options)`
+  s opcijama `width` (canvas CSS px), `height` (canvas CSS px),
+  `viewportWidth` (authored scene width, 2172 px).
+- **Asset loading:** `game.js` async u konstruktoru čita
+  `assets/backgrounds/Moj-grad.parallax.json` (fetch) i dekodira svih
+  26 PNG-ova s `Image().decode()`. Pohranjuje ih u `Map<id, Image>`.
+- **Fallback:** Ako parallax ne učita, `draw()` koristi proceduralni
+  drawSky/drawClouds/drawSkyline/drawGround/seededNoise iz
+  originalnog game.js — proceduralni kod je zadržan, ne obrisan.
+- **Proceduralni kod očuvan:** drawSky, drawClouds, drawSkyline,
+  drawGround, seededNoise funkcije ostaju u game.js kao fallback.
+  Coder u `t_3a520817` ih je vratioja pravno nakon Faze 1 brisanja.
+- **Loop wraparound:** `scene.loop.end = 4500` px. `worldX` linearno
+  raste u endless flyeru; renderer interno rješava wraparound.
+
 ## Deployment
 
 - **GitHub Pages** je planirani deployment target (još nije konfiguriran);

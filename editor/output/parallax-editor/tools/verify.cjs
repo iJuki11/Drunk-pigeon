@@ -1,0 +1,58 @@
+const {chromium}=require('playwright'),fs=require('fs'),assert=require('assert');
+const url='file:///Users/Juki/Documents/Codex/Igra/output/parallax-editor/editor.html';
+const R=require('../source/runtime.js');
+const loop={start:1000,end:3000};
+assert.equal(R.instances({x:100,width:100,repeat:'auto'},loop,3100,3300).length,0,'intro must not repeat');
+assert(R.instances({x:2900,width:200,repeat:'loop'},loop,1000,1100).some(p=>p.x===900&&p.clipLeft===1000),'crossing end must wrap to start');
+assert(R.instances({x:2900,width:200,repeat:'loop'},loop,3000,3150).some(p=>p.x===2900),'end crossing persists after seam');
+(async()=>{
+ const browser=await chromium.launch({headless:true});const context=await browser.newContext({viewport:{width:1600,height:1050},acceptDownloads:true});const p=await context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
+ await p.goto(url);await p.waitForFunction(()=>document.body.dataset.ready==='true',null,{timeout:60000});
+ assert.equal(await p.evaluate(()=>ScenaEditor.getAssets().length),44);assert.equal(await p.evaluate(()=>ScenaEditor.getScene().layers.length),14);
+ await p.screenshot({path:'/private/tmp/editor-initial.png',fullPage:true});
+ await p.getByRole('button',{name:'Dodaj sloj',exact:true}).click();await p.locator('#layerName').fill('Test stabla');await p.locator('#layerName').press('Tab');
+ await p.getByRole('button',{name:'Dodaj Drvo · široko',exact:true}).click();
+ const find=()=>p.evaluate(()=>ScenaEditor.getScene().layers.find(l=>l.name==='Test stabla'));
+ assert.equal((await find()).objects.length,1);
+ await p.locator('#objectX').fill('300');await p.locator('#objectX').press('Tab');await p.locator('#objectY').fill('300');await p.locator('#objectY').press('Tab');
+ await p.locator('#objectWidth').fill('180');await p.locator('#objectWidth').press('Tab');
+ let o=(await find()).objects[0];assert.equal(o.width,180);assert(o.height>185);
+ let pt=await p.evaluate(o=>{const t=ScenaEditor.getView().transform,r=document.querySelector('#canvas').getBoundingClientRect();return {x:r.left+t.tx+(o.x+o.width*.5)*t.s,y:r.top+t.ty+(o.y+o.height*.3)*t.s,s:t.s};},o);
+ await p.mouse.move(pt.x,pt.y);await p.mouse.down();await p.mouse.move(pt.x+45,pt.y+20,{steps:6});await p.mouse.up();
+ let moved=(await find()).objects[0];assert(Math.abs(moved.x-o.x-45/pt.s)<2,'drag moves in scene pixels');
+ let corner=await p.evaluate(o=>{const t=ScenaEditor.getView().transform,r=document.querySelector('#canvas').getBoundingClientRect();return {x:r.left+t.tx+(o.x+o.width)*t.s,y:r.top+t.ty+(o.y+o.height)*t.s};},moved);
+ await p.mouse.move(corner.x,corner.y);await p.mouse.down();await p.mouse.move(corner.x+25,corner.y+25,{steps:6});await p.mouse.up();assert((await find()).objects[0].width>moved.width,'resize handle works');
+ await p.getByRole('button',{name:'⧉ Dupliciraj',exact:true}).click();assert.equal((await find()).objects.length,2);
+ await p.locator('#deleteObject').click();assert.equal((await find()).objects.length,1);await p.getByRole('button',{name:'Poništi',exact:true}).click();assert.equal((await find()).objects.length,2);
+ await p.getByRole('button',{name:'Sloj',exact:true}).click();await p.locator('#layerSpeed').fill('.43');await p.locator('#layerSpeed').press('Tab');assert.equal((await find()).parallax,.43);
+ await p.getByRole('button',{name:'Petlja',exact:true}).click();await p.locator('#loopStart').fill('500');await p.locator('#loopStart').press('Tab');await p.locator('#loopEnd').fill('3200');await p.locator('#loopEnd').press('Tab');assert.deepEqual(await p.evaluate(()=>ScenaEditor.getScene().loop),{start:500,end:3200});
+ await p.locator('#fitSurfaces').click();
+ const sky=await p.evaluate(()=>ScenaEditor.getScene().layers.find(l=>l.id==='sky'));
+ assert.equal(sky.objects.length,2);assert.equal(sky.objects.find(o=>o.repeat==='once').width,500);assert.equal(sky.objects.find(o=>o.repeat==='loop').width,2700);
+ await p.locator('#inspectSeam').click();assert.equal(await p.evaluate(()=>ScenaEditor.getView().mode),'seam');await p.screenshot({path:'/private/tmp/editor-seam.png',fullPage:true});
+ // Drag the same repeated element across the seam; its canonical X must wrap.
+ await p.getByRole('button',{name:'Element',exact:true}).click();await p.locator('#objectList button').first().click();
+ await p.locator('#objectRepeat').selectOption('loop');await p.locator('#objectX').fill('3100');await p.locator('#objectX').press('Tab');await p.locator('#objectY').fill('200');await p.locator('#objectY').press('Tab');
+ let seamObject=(await find()).objects.at(-1);let sp=await p.evaluate(o=>{const t=ScenaEditor.getView().transform,r=document.querySelector('#canvas').getBoundingClientRect();return {x:r.left+t.tx+(o.x+o.width*.5)*t.s,y:r.top+t.ty+(o.y+o.height*.3)*t.s};},seamObject);
+ await p.mouse.move(sp.x,sp.y);await p.mouse.down();await p.mouse.move(sp.x+100,sp.y,{steps:8});await p.mouse.up();
+ assert((await find()).objects.at(-1).x>=500&&(await find()).objects.at(-1).x<1000,'seam drag normalizes same object into loop');
+ await p.getByRole('button',{name:'Pokreni animaciju',exact:true}).click();await p.waitForFunction(()=>ScenaEditor.getView().camera>10);await p.getByRole('button',{name:'Zaustavi animaciju',exact:true}).click();
+ await p.locator('#camera').evaluate(e=>{e.value='9000';e.dispatchEvent(new Event('input',{bubbles:true}));});assert.equal(await p.evaluate(()=>ScenaEditor.getView().camera),9000);
+ // An imported PNG must survive save/reopen without depending on its original path.
+ await p.locator('#imageFile').setInputFiles('/Users/Juki/Documents/Codex/Igra/output/scenery-elements/sprites/hedge.png');
+ await p.waitForFunction(()=>ScenaEditor.getAssets().some(a=>a.category==='Uvezeno'));
+ await p.getByRole('button',{name:'Slaganje',exact:true}).click();await p.getByRole('button',{name:'Dodaj hedge',exact:true}).click();
+ const expected=await p.evaluate(()=>ScenaEditor.getScene());
+ const download=await Promise.all([p.waitForEvent('download'),p.locator('#exportProject').click()]);await download[0].saveAs('/private/tmp/scena-roundtrip.parallax.json');
+ const data=JSON.parse(fs.readFileSync('/private/tmp/scena-roundtrip.parallax.json'));assert(data.assets.every(a=>a.data.startsWith('data:image/png;base64,')));assert(data.rendering.rendererSource.includes('function render'));
+ await p.locator('#projectFile').setInputFiles('/private/tmp/scena-roundtrip.parallax.json');await p.waitForFunction(()=>document.querySelector('#toast').textContent.includes('Projekt je otvoren'));
+ assert.deepEqual(await p.evaluate(()=>ScenaEditor.getScene()),expected,'roundtrip preserves scene exactly');
+ await p.waitForTimeout(900);await p.reload();await p.waitForFunction(()=>document.body.dataset.ready==='true');assert.deepEqual(await p.evaluate(()=>ScenaEditor.getScene()),expected,'IndexedDB recovery preserves scene');
+ fs.writeFileSync('/private/tmp/bad-scene.json',JSON.stringify({format:'scena-parallax',version:1,scene:{},assets:[]}));await p.locator('#projectFile').setInputFiles('/private/tmp/bad-scene.json');await p.waitForFunction(()=>document.querySelector('#toast').textContent.includes('Nisam otvorio projekt'));assert.deepEqual(await p.evaluate(()=>ScenaEditor.getScene()),expected,'bad import keeps previous project');
+ assert.equal(errors.length,0,errors.join('\n'));await context.close();
+ // Fresh context verifies embedded custom image import without any existing custom asset.
+ const fresh=await browser.newContext({viewport:{width:1440,height:960}});const q=await fresh.newPage();await q.goto(url);await q.waitForFunction(()=>document.body.dataset.ready==='true');await q.locator('#projectFile').setInputFiles('/private/tmp/scena-roundtrip.parallax.json');await q.waitForFunction(()=>document.querySelector('#toast').textContent.includes('Projekt je otvoren'));
+ assert.equal(await q.evaluate(()=>ScenaEditor.getScene().layers.find(l=>l.name==='Test stabla').objects.length),3);
+ await q.setViewportSize({width:1100,height:850});assert(await q.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'1100px layout fits');
+ await browser.close();console.log('PASS: assets, add, drag, resize, duplicate, delete/undo, parallax, intro/loop seam, playback, custom PNG, self-contained export/import, fresh-context import, autosave recovery, bad-file recovery, responsive layout.');
+})().catch(e=>{console.error(e);process.exit(1)});

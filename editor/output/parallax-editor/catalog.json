@@ -1,0 +1,429 @@
+[
+  {
+    "id": "cafe",
+    "name": "Kafić s terasom",
+    "category": "Kuće i zgrade",
+    "width": 1586,
+    "height": 680,
+    "defaultWidth": 800,
+    "defaultHeight": 343
+  },
+  {
+    "id": "house",
+    "name": "Kuća iza kafića",
+    "category": "Kuće i zgrade",
+    "width": 1349,
+    "height": 937,
+    "defaultWidth": 615,
+    "defaultHeight": 427
+  },
+  {
+    "id": "apartment",
+    "name": "Stambena zgrada",
+    "category": "Kuće i zgrade",
+    "width": 506,
+    "height": 1273,
+    "defaultHeight": 420,
+    "defaultWidth": 167
+  },
+  {
+    "id": "gable-shop",
+    "name": "Kuća s kosim krovom",
+    "category": "Kuće i zgrade",
+    "width": 1018,
+    "height": 938,
+    "defaultHeight": 260,
+    "defaultWidth": 282
+  },
+  {
+    "id": "awning-shop",
+    "name": "Kuća s tendom",
+    "category": "Kuće i zgrade",
+    "width": 811,
+    "height": 956,
+    "defaultHeight": 260,
+    "defaultWidth": 221
+  },
+  {
+    "id": "narrow-house",
+    "name": "Uska gradska kuća",
+    "category": "Kuće i zgrade",
+    "width": 640,
+    "height": 1312,
+    "defaultHeight": 260,
+    "defaultWidth": 127
+  },
+  {
+    "id": "tree-left",
+    "name": "Drvo · široko",
+    "category": "Stabla i ograde",
+    "width": 724,
+    "height": 1019,
+    "defaultWidth": 131,
+    "defaultHeight": 185
+  },
+  {
+    "id": "tree-right",
+    "name": "Drvo · usko",
+    "category": "Stabla i ograde",
+    "width": 586,
+    "height": 1070,
+    "defaultWidth": 104,
+    "defaultHeight": 190
+  },
+  {
+    "id": "fence-wood",
+    "name": "Siva ograda",
+    "category": "Stabla i ograde",
+    "width": 1408,
+    "height": 388,
+    "defaultWidth": 180,
+    "defaultHeight": 47
+  },
+  {
+    "id": "hedge",
+    "name": "Živica",
+    "category": "Stabla i ograde",
+    "width": 2026,
+    "height": 299,
+    "defaultWidth": 440,
+    "defaultHeight": 66
+  },
+  {
+    "id": "fence-stone",
+    "name": "Kameni zid",
+    "category": "Stabla i ograde",
+    "width": 1962,
+    "height": 277,
+    "defaultWidth": 430,
+    "defaultHeight": 47
+  },
+  {
+    "id": "sun",
+    "name": "Sunce",
+    "category": "Nebo i oblaci",
+    "width": 144,
+    "height": 144,
+    "defaultWidth": 144,
+    "defaultHeight": 144,
+    "defaultY": 32
+  },
+  {
+    "id": "cloud-01",
+    "name": "Oblak 1",
+    "category": "Nebo i oblaci",
+    "width": 258,
+    "height": 75,
+    "defaultWidth": 258,
+    "defaultHeight": 75,
+    "defaultY": 119
+  },
+  {
+    "id": "cloud-02",
+    "name": "Oblak 2",
+    "category": "Nebo i oblaci",
+    "width": 344,
+    "height": 97,
+    "defaultWidth": 344,
+    "defaultHeight": 97,
+    "defaultY": 36
+  },
+  {
+    "id": "cloud-03",
+    "name": "Oblak 3",
+    "category": "Nebo i oblaci",
+    "width": 241,
+    "height": 70,
+    "defaultWidth": 241,
+    "defaultHeight": 70,
+    "defaultY": 149
+  },
+  {
+    "id": "cloud-04",
+    "name": "Oblak 4",
+    "category": "Nebo i oblaci",
+    "width": 357,
+    "height": 101,
+    "defaultWidth": 357,
+    "defaultHeight": 101,
+    "defaultY": 93
+  },
+  {
+    "id": "road",
+    "name": "Cesta i nogostup",
+    "category": "Cesta",
+    "width": 2172,
+    "height": 129,
+    "defaultWidth": 2172,
+    "defaultHeight": 129,
+    "defaultY": 595
+  },
+  {
+    "id": "lamp",
+    "name": "Ulična lampa",
+    "category": "Ostali elementi",
+    "width": 30,
+    "height": 202,
+    "defaultWidth": 30,
+    "defaultHeight": 202
+  },
+  {
+    "id": "archer",
+    "name": "Lik s lukom",
+    "category": "Ostali elementi",
+    "width": 1024,
+    "height": 1536,
+    "defaultWidth": 220,
+    "defaultHeight": 330
+  },
+  {
+    "id": "sky",
+    "name": "Nebo · sivi gradijent",
+    "category": "Pozadinski slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "far",
+    "name": "Daleki grad",
+    "category": "Pozadinski slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "mid",
+    "name": "Srednji grad",
+    "category": "Pozadinski slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "city-02-sun",
+    "name": "Sunce · cijeli sloj",
+    "category": "Gotovi slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "city-03-clouds",
+    "name": "Oblaci · cijeli sloj",
+    "category": "Gotovi slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "city-06a-houses-back",
+    "name": "Kuće · stražnji red · cijeli sloj",
+    "category": "Gotovi slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "city-06b-houses-middle",
+    "name": "Kuće · srednji red · cijeli sloj",
+    "category": "Gotovi slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "city-06c-houses-front",
+    "name": "Kuće · prednji red · cijeli sloj",
+    "category": "Gotovi slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "city-07-house",
+    "name": "Kuća iza kafića · cijeli sloj",
+    "category": "Gotovi slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "city-08-cafe",
+    "name": "Kafić · cijeli sloj",
+    "category": "Gotovi slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "city-09-lamps",
+    "name": "Ulične lampe · cijeli sloj",
+    "category": "Gotovi slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "city-10-road",
+    "name": "Nogostup i cesta · cijeli sloj",
+    "category": "Gotovi slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "scenery-06-tree-right",
+    "name": "Drvo · usko · cijeli sloj",
+    "category": "Gotovi slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "scenery-07-tree-left",
+    "name": "Drvo · široko · cijeli sloj",
+    "category": "Gotovi slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "scenery-08-fence-wood",
+    "name": "Siva ograda · cijeli sloj",
+    "category": "Gotovi slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "scenery-09-hedge",
+    "name": "Živica · cijeli sloj",
+    "category": "Gotovi slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "scenery-10-fence-stone",
+    "name": "Kameni zid · cijeli sloj",
+    "category": "Gotovi slojevi",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "street",
+    "name": "Spojeni niz kuća",
+    "category": "Varijante",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "street-mirror",
+    "name": "Spojeni niz kuća · zrcalno",
+    "category": "Varijante",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "street-sprite",
+    "name": "Spojeni niz kuća · obrezano",
+    "category": "Varijante",
+    "width": 2172,
+    "height": 449,
+    "defaultWidth": 2172,
+    "defaultHeight": 449,
+    "defaultY": 146
+  },
+  {
+    "id": "original",
+    "name": "Originalna panorama",
+    "category": "Spojene pozadine",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "preview",
+    "name": "Složena panorama",
+    "category": "Spojene pozadine",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "no-cafe",
+    "name": "Grad bez kafića",
+    "category": "Spojene pozadine",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "sky-composite",
+    "name": "Nebo sa suncem i oblacima",
+    "category": "Spojene pozadine",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  },
+  {
+    "id": "background",
+    "name": "Spojeno nebo i udaljeni grad",
+    "category": "Spojene pozadine",
+    "width": 2172,
+    "height": 724,
+    "defaultWidth": 2172,
+    "defaultHeight": 724,
+    "defaultY": 0
+  }
+]

@@ -60,7 +60,7 @@ button {
   left: 1rem;
   right: 1rem;
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   align-items: start;
   gap: 0.5rem;
   pointer-events: none;
@@ -71,6 +71,49 @@ button {
 .touch-prompt[hidden] {
   display: none;
 }
+
+.pause-overlay[hidden] {
+  display: none;
+}
+
+.pause-overlay {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  text-align: center;
+  background: rgba(12, 14, 16, 0.58);
+}
+
+.pause-overlay h2 {
+  margin: 0;
+  font-size: clamp(3rem, 16vw, 5rem);
+}
+
+.pause-overlay p {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.poop-indicator {
+  display: flex;
+  align-items: center;
+  gap: .14rem;
+  min-height: 3.25rem;
+  padding: 0 .45rem;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: .9rem;
+  background: rgba(30,32,34,.78);
+}
+.poop-indicator svg { width: 1.1rem; height: 1.1rem; fill: #8f705a; opacity: .35; transition: fill 200ms ease, opacity 200ms ease; }
+.poop-indicator svg.charged { fill: #5d321d; opacity: 1; }
+#coffee-boost { color: #f5b82e; font-size: .7rem; font-weight: 800; white-space: nowrap; }
 
 .hud-score,
 .hud-pill {
@@ -115,6 +158,31 @@ button {
   color: var(--ink);
   font-size: 1rem;
   font-variant-numeric: tabular-nums;
+}
+
+.hud-health {
+  display: flex;
+  gap: 0.2rem;
+  align-items: center;
+  min-height: 3.25rem;
+  padding: 0 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.9rem;
+  background: rgba(30, 32, 34, 0.78);
+}
+
+.health-heart {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: #f06b62;
+  stroke: #ffd6c9;
+  stroke-width: 1.5;
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.health-heart.lost {
+  opacity: 0.12;
+  transform: scale(0.72);
 }
 
 .beer-dot {

@@ -1,0 +1,470 @@
+import { Player } from "./player.js";
+import { CollectibleManager } from "./collectibles.js";
+import { AssetLoader } from "./assets.js";
+import { AudioBus } from "./audio.js";
+import { Health } from "./health.js";
+import { ToniManager } from "./enemies.js";
+import { PoopManager } from "./poop.js";
+import { DeckiManager } from "./deckis.js";
+
+const ZOOM_BACKGROUND = 1; // < 1 = zoom out, > 1 = zoom in
+
+// Maksimalni lokalni pomak po grupi, u pikselima izvorne scene.
+const BACKGROUND_LOCAL_OFFSETS = {
+  houseBehindCafe: 10, // "house"
+  buildingsFront: 10, // "06c-houses-front"
+  buildingsMiddle: 15, // "06b-houses-middle"
+  buildingsBack: 20, // "06a-houses-back"
+  landmarks: 10, // "cfb105b7-44de-4982-a88c-84f13653309b"
+  // Ograda, živica i lampice dijele isti pomak.
+  fenceAndGreenery: 5, // "trees" + "hedge" + "82c54401-398e-4a44-92df-d15f4860c269" + "70818334-8b80-4ba9-860c-eb223415bda3" + "42111777-a740-486f-8194-a14ab98980f6"
+};
+
+const STATE = Object.freeze({
+  START: "start",
+  PLAYING: "playing",
+  PAUSED: "paused",
+  GAME_OVER: "game-over",
+});
+
+export class Game {
+  constructor(canvas, input, ui) {
+    this.canvas = canvas;
+    this.context = canvas.getContext("2d");
+    this.input = input;
+    this.ui = ui;
+    this.state = STATE.START;
+    this.width = 0;
+    this.height = 0;
+    this.pixelRatio = 1;
+    this.distance = 0;
+    this.beers = 0;
+    this.score = 0;
+    this.speed = 170;
+    this.worldX = 0;
+    this.lastTime = 0;
+    this.pauseTimestamp = 0;
+    this.popups = [];
+    this.scorePenalty = 0;
+    this.collectibles = new CollectibleManager();
+    this.player = new Player(90, 300);
+    this.health = new Health();
+    this.audio = new AudioBus();
+    this.assets = new AssetLoader();
+    this.assets.preload([
+      { id: "toni-prepare", src: "./assets/images/custom/toni_prepare.png" },
+      { id: "toni-shoot", src: "./assets/images/custom/toni_shoot.png" },
+      { id: "decki", src: "./assets/images/custom/decki.png" },
+    ]);
+    this.toniManager = new ToniManager(this.assets, this.audio, this.health);
+    this.deckiManager = new DeckiManager(this.assets, this.audio);
+    this.poopManager = new PoopManager(this.audio, (x, y) => { this.scorePenalty -= 200; this.popups.push({ x, y, age: 0, value: "-200", negative: true }); });
+
+    this.parallaxProject = null;
+    this.parallaxImages = new Map();
+    this.loadParallaxBackground();
+
+    this.frame = this.frame.bind(this);
+    this.resize = this.resize.bind(this);
+    window.addEventListener("resize", this.resize);
+    document.addEventListener("visibilitychange", () => {
+      this.lastTime = performance.now();
+    });
+
+    this.resize();
+    this.ui.showStart();
+    requestAnimationFrame(this.frame);
+  }
+
+  resize() {
+    const bounds = this.canvas.getBoundingClientRect();
+    this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    this.width = Math.max(1, bounds.width);
+    this.height = Math.max(1, bounds.height);
+    this.canvas.width = Math.round(this.width * this.pixelRatio);
+    this.canvas.height = Math.round(this.height * this.pixelRatio);
+    this.context.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
+
+    if (this.state === STATE.START || this.state === STATE.GAME_OVER) {
+      this.player.x = this.width * 0.25;
+      this.player.y = this.height * 0.44;
+    }
+  }
+
+  start() {
+    this.health.reset();
+    this.distance = 0;
+    this.beers = 0;
+    this.score = 0;
+    this.speed = 170;
+    this.worldX = 0;
+    this.popups = [];
+    this.scorePenalty = 0;
+    this.coffeeCollected = 0;
+    this.coffeeBoostTimer = 0;
+    this.collectibles.reset();
+    this.toniManager.reset();
+    this.deckiManager.reset();
+    this.poopManager.reset();
+    this.player = new Player(this.width * 0.25, this.height * 0.45);
+    this.player.flap();
+    this.state = STATE.PLAYING;
+    this.input.setEnabled(true);
+    this.ui.update(this.snapshot());
+    this.ui.showPlaying();
+    this.lastTime = performance.now();
+  }
+
+  end() {
+    if (this.state !== STATE.PLAYING) return;
+    this.state = STATE.GAME_OVER;
+    this.input.setEnabled(false);
+    this.audio.playGameOver();
+    this.ui.showGameOver(this.snapshot());
+  }
+
+  pause() {
+    if (this.state !== STATE.PLAYING) return;
+    this.state = STATE.PAUSED;
+    this.pauseTimestamp = performance.now();
+    this.ui.showPaused();
+  }
+
+  resume() {
+    if (this.state !== STATE.PAUSED) return;
+    this.state = STATE.PLAYING;
+    this.lastTime = performance.now();
+    this.ui.hidePaused();
+  }
+
+  togglePause() {
+    if (this.state === STATE.PLAYING) {
+      this.pause();
+    } else if (this.state === STATE.PAUSED) {
+      this.resume();
+    }
+  }
+
+  snapshot() {
+    return {
+      score: this.score,
+      distance: this.distance,
+      beers: this.beers,
+      health: this.health.getCurrent(),
+      poopCounter: this.poopManager?.counter || 0,
+      poopCooldown: this.poopManager?.cooldown || 5,
+      coffeeBoost: this.coffeeBoostTimer || 0,
+    };
+  }
+
+  frame(timestamp) {
+    if (!this.lastTime) this.lastTime = timestamp;
+    const deltaTime = Math.min((timestamp - this.lastTime) / 1000, 0.034);
+    this.lastTime = timestamp;
+
+    this.update(deltaTime);
+    this.draw();
+    requestAnimationFrame(this.frame);
+  }
+
+  update(deltaTime) {
+    if (this.input.consumePause()) this.togglePause();
+
+    if (this.state !== STATE.PLAYING) {
+      this.input.consumeFlap();
+      return;
+    }
+
+    this.worldX += this.speed * deltaTime;
+
+    if (this.input.consumeFlap()) { this.player.flap(); this.poopManager.onFlap(this.player.x, this.player.y); }
+
+    this.player.update(deltaTime);
+    this.speed = Math.min(255, 170 + this.distance * 0.05);
+    this.distance += this.speed * deltaTime * 0.055;
+    this.score = Math.floor(this.distance) + this.beers * 100 + this.scorePenalty;
+
+    const groundY = this.getGroundY();
+    this.collectibles.update(deltaTime, this.speed, this.width, this.height, groundY);
+    this.deckiManager.update(deltaTime, this.width, groundY);
+    this.poopManager.update(deltaTime, this.height, this.deckiManager.activeItems());
+    this.toniManager.update(deltaTime, this.width, this.height, this.player);
+    if (this.coffeeBoostTimer > 0) { this.coffeeBoostTimer = Math.max(0, this.coffeeBoostTimer - deltaTime); if (!this.coffeeBoostTimer) { this.poopManager.cooldown = 5; this.coffeeCollected = 0; } }
+    const collectedItems = this.collectibles.collect(this.player.getBounds());
+
+    for (const item of collectedItems) {
+      if (item.type === "coffee") {
+        this.audio.playCoffee();
+        this.coffeeCollected += 1;
+        this.scorePenalty += 25;
+        if (this.coffeeCollected >= 5) { this.poopManager.cooldown = 3; this.coffeeBoostTimer = 10; }
+        this.popups.push({ x: item.x, y: item.y, age: 0, value: "+25" });
+      } else {
+        this.beers += 1;
+        this.audio.playBeer();
+        this.popups.push({ x: item.x, y: item.y, age: 0, value: "+100" });
+      }
+      this.score = Math.floor(this.distance) + this.beers * 100 + this.scorePenalty;
+    }
+
+    for (const popup of this.popups) {
+      popup.age += deltaTime;
+      popup.y -= 34 * deltaTime;
+    }
+    this.popups = this.popups.filter((popup) => popup.age < 0.85);
+
+    this.ui.update(this.snapshot());
+
+    const bounds = this.player.getBounds();
+    if (bounds.top <= 4 || bounds.bottom >= groundY || this.health.isDead()) this.end();
+  }
+
+  getGroundY() {
+    return this.height - Math.max(46, this.height * 0.065);
+  }
+
+  async loadParallaxBackground() {
+    try {
+      const response = await fetch("./assets/backgrounds/background.parallax.json");
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const project = await response.json();
+      await Promise.all(project.assets.map(async (asset) => {
+        const image = new Image();
+        image.src = asset.data;
+        await image.decode();
+        this.parallaxImages.set(asset.id, image);
+      }));
+      this.parallaxProject = project;
+    } catch (error) {
+      console.warn("[parallax] failed to load:", error);
+    }
+  }
+
+  draw() {
+    const context = this.context;
+    context.clearRect(0, 0, this.width, this.height);
+
+    if (this.parallaxProject && globalThis.ParallaxRuntime) {
+      const scene = this.parallaxProject.scene;
+      const localParallaxLength = 4500;
+      const phase = ((((this.worldX % localParallaxLength) + localParallaxLength) % localParallaxLength) / localParallaxLength);
+      const localBreath = Math.sin(phase * Math.PI * 2);
+      const localOffsetForLayer = {
+        house: BACKGROUND_LOCAL_OFFSETS.houseBehindCafe,
+        "06c-houses-front": BACKGROUND_LOCAL_OFFSETS.buildingsFront,
+        "06b-houses-middle": BACKGROUND_LOCAL_OFFSETS.buildingsMiddle,
+        "06a-houses-back": BACKGROUND_LOCAL_OFFSETS.buildingsBack,
+        "cfb105b7-44de-4982-a88c-84f13653309b": BACKGROUND_LOCAL_OFFSETS.landmarks,
+        trees: BACKGROUND_LOCAL_OFFSETS.fenceAndGreenery,
+        hedge: BACKGROUND_LOCAL_OFFSETS.fenceAndGreenery,
+        "82c54401-398e-4a44-92df-d15f4860c269": BACKGROUND_LOCAL_OFFSETS.fenceAndGreenery,
+        "70818334-8b80-4ba9-860c-eb223415bda3": BACKGROUND_LOCAL_OFFSETS.fenceAndGreenery,
+        "42111777-a740-486f-8194-a14ab98980f6": BACKGROUND_LOCAL_OFFSETS.fenceAndGreenery,
+      };
+      // Pomakujemo objekte, a ne parallax: tako je pomak lokalni i
+      // svaki ponovljeni blok dobiva isti položaj u istoj fazi.
+      const sceneWithLocalOffsets = {
+        ...scene,
+        layers: scene.layers.map((layer) => {
+          const maxOffset = localOffsetForLayer[layer.id] ?? 0;
+          if (maxOffset === 0) return layer;
+          const localOffset = localBreath * maxOffset;
+          return {
+            ...layer,
+            objects: layer.objects.map((object) => ({
+              ...object,
+              x: object.x + localOffset,
+            })),
+          };
+        }),
+      };
+      const groundY = this.getGroundY();
+
+      const zoom =
+        Number.isFinite(ZOOM_BACKGROUND) && ZOOM_BACKGROUND > 0
+          ? ZOOM_BACKGROUND
+          : 1;
+
+      const baseScale = this.height / scene.canvas.height;
+      const scale = baseScale * zoom;
+
+      context.save();
+      context.beginPath();
+      context.rect(0, 0, this.width, this.height);
+      context.clip();
+
+      // Nebo popunjava prostor koji se otkrije odzumiranjem.
+      const sky = context.createLinearGradient(0, 0, 0, this.height);
+      sky.addColorStop(0, "#c7cbca");
+      sky.addColorStop(0.55, "#aeb4b5");
+      sky.addColorStop(1, "#858c8e");
+      context.fillStyle = sky;
+      context.fillRect(0, 0, this.width, this.height);
+
+      // Podloga ispod razine tla.
+      context.fillStyle = "#2f3436";
+      context.fillRect(
+        0,
+        groundY,
+        this.width,
+        this.height - groundY
+      );
+
+      // Zgrade ostaju usidrene na tlo dok se smanjuju.
+      context.translate(0, groundY - scene.groundY * scale);
+
+      globalThis.ParallaxRuntime.render(
+        context,
+        sceneWithLocalOffsets,
+        this.parallaxImages,
+        this.worldX,
+        {
+          width: this.width,
+          height: scene.canvas.height * scale,
+          viewportWidth: this.width / scale,
+          clear: false,
+        }
+      );
+
+      context.restore();
+    } else {
+      // Procedural fallback while the editor export loads or if it fails.
+      this.drawSky(context);
+      this.drawClouds(context);
+      this.drawSkyline(context, 0.16, this.height * 0.52, "#969c9e", 54, 105);
+      this.drawSkyline(context, 0.34, this.height * 0.68, "#737a7c", 68, 150);
+      this.drawSkyline(context, 0.62, this.height * 0.79, "#50575a", 84, 210);
+      this.drawGround(context);
+    }
+
+    this.collectibles.draw(context);
+    this.deckiManager.draw(context);
+    this.poopManager.draw(context);
+    this.toniManager.draw(context);
+    this.player.draw(context);
+    this.drawPopups(context);
+    this.drawVignette(context);
+  }
+
+  drawSky(context) {
+    const gradient = context.createLinearGradient(0, 0, 0, this.height);
+    gradient.addColorStop(0, "#c7cbca");
+    gradient.addColorStop(0.55, "#aeb4b5");
+    gradient.addColorStop(1, "#858c8e");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, this.width, this.height);
+
+    context.fillStyle = "rgba(242, 240, 225, 0.38)";
+    context.beginPath();
+    context.arc(this.width * 0.78, this.height * 0.17, 42, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  drawClouds(context) {
+    const offset = (this.worldX * 0.08) % (this.width + 230);
+    for (let index = -1; index < 3; index += 1) {
+      const x = index * 230 - offset + 70;
+      const y = this.height * (0.18 + (index % 2) * 0.09);
+      context.fillStyle = "rgba(235, 237, 233, 0.55)";
+      context.beginPath();
+      context.ellipse(x, y, 54, 17, 0, 0, Math.PI * 2);
+      context.ellipse(x + 28, y - 8, 32, 18, 0, 0, Math.PI * 2);
+      context.ellipse(x - 28, y - 5, 28, 15, 0, 0, Math.PI * 2);
+      context.fill();
+    }
+  }
+
+  drawSkyline(context, parallax, baseline, color, minWidth, maxHeight) {
+    const gap = 7;
+    const step = minWidth + gap;
+    const offset = (this.worldX * parallax) % step;
+    const startIndex = Math.floor((this.worldX * parallax) / step);
+    context.fillStyle = color;
+
+    for (let index = -2; index < Math.ceil(this.width / step) + 2; index += 1) {
+      const worldIndex = startIndex + index;
+      const noise = seededNoise(worldIndex * 7 + Math.round(parallax * 100));
+      const width = minWidth * (0.72 + seededNoise(worldIndex * 11) * 0.58);
+      const height = maxHeight * (0.42 + noise * 0.58);
+      const x = index * step - offset;
+      const y = baseline - height;
+      context.fillRect(x, y, width, height);
+
+      if (parallax > 0.3) {
+        context.fillStyle = "rgba(210, 213, 210, 0.32)";
+        const columns = Math.max(1, Math.floor(width / 19));
+        for (let column = 0; column < columns; column += 1) {
+          for (let row = 0; row < Math.floor(height / 28); row += 1) {
+            if ((column + row + worldIndex) % 3 !== 0) {
+              context.fillRect(x + 8 + column * 17, y + 11 + row * 25, 5, 8);
+            }
+          }
+        }
+        context.fillStyle = color;
+      }
+
+      if (parallax > 0.5 && worldIndex % 4 === 0) {
+        context.fillRect(x + width * 0.55, y - 23, 3, 23);
+        context.beginPath();
+        context.arc(x + width * 0.55 + 1.5, y - 25, 4, 0, Math.PI * 2);
+        context.fill();
+      }
+    }
+  }
+
+  drawGround(context) {
+    const groundY = this.getGroundY();
+    context.fillStyle = "#2f3436";
+    context.fillRect(0, groundY, this.width, this.height - groundY);
+    context.fillStyle = "#454b4d";
+    context.fillRect(0, groundY, this.width, 8);
+
+    const dashOffset = (this.worldX * 0.9) % 48;
+    context.fillStyle = "rgba(255, 255, 255, 0.14)";
+    for (let x = -dashOffset; x < this.width; x += 48) {
+      context.fillRect(x, groundY + 20, 25, 3);
+    }
+  }
+
+  drawPopups(context) {
+    context.save();
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.font = "900 20px Inter, system-ui, sans-serif";
+    for (const popup of this.popups) {
+      const progress = popup.age / 0.85;
+      const scale = 0.72 + Math.sin(Math.min(1, progress * 2) * Math.PI * 0.5) * 0.35;
+      context.globalAlpha = 1 - progress;
+      context.save();
+      context.translate(popup.x, popup.y);
+      context.scale(scale, scale);
+      context.fillStyle = "#fff4c6";
+      context.strokeStyle = "rgba(91, 57, 5, 0.6)";
+      context.lineWidth = 5;
+      context.strokeText(popup.value, 0, 0);
+      context.fillText(popup.value, 0, 0);
+      context.restore();
+    }
+    context.restore();
+  }
+
+  drawVignette(context) {
+    const gradient = context.createRadialGradient(
+      this.width * 0.5,
+      this.height * 0.42,
+      this.width * 0.2,
+      this.width * 0.5,
+      this.height * 0.5,
+      Math.max(this.width, this.height) * 0.72,
+    );
+    gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+    gradient.addColorStop(1, "rgba(8, 11, 12, 0.16)");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, this.width, this.height);
+  }
+}
+
+function seededNoise(seed) {
+  const value = Math.sin(seed * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
+}

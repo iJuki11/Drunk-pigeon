@@ -1,0 +1,249 @@
+{
+  "canvas": {
+    "width": 2172,
+    "height": 724
+  },
+  "layers": [
+    {
+      "id": "01-sky-gradient",
+      "label": "Nebo s gradijentom",
+      "parallax": 0,
+      "file": "layers/01-sky-gradient.png",
+      "width": 2172,
+      "height": 724
+    },
+    {
+      "id": "02-sun",
+      "label": "Sunce",
+      "parallax": 0.025,
+      "file": "layers/02-sun.png",
+      "width": 2172,
+      "height": 724
+    },
+    {
+      "id": "03-clouds",
+      "label": "Oblaci",
+      "parallax": 0.07,
+      "file": "layers/03-clouds.png",
+      "width": 2172,
+      "height": 724
+    },
+    {
+      "id": "04-skyline-far",
+      "label": "Daleki grad",
+      "parallax": 0.16,
+      "file": "layers/04-skyline-far.png",
+      "width": 2172,
+      "height": 724
+    },
+    {
+      "id": "05-skyline-mid",
+      "label": "Srednji grad",
+      "parallax": 0.34,
+      "file": "layers/05-skyline-mid.png",
+      "width": 2172,
+      "height": 724
+    },
+    {
+      "id": "06-tree-right",
+      "label": "Drvo · usko",
+      "file": "layers/06-tree-right.png",
+      "width": 2172,
+      "height": 724,
+      "parallax": 0.64
+    },
+    {
+      "id": "07-tree-left",
+      "label": "Drvo · široko",
+      "file": "layers/07-tree-left.png",
+      "width": 2172,
+      "height": 724,
+      "parallax": 0.66
+    },
+    {
+      "id": "08-fence-wood",
+      "label": "Siva ograda",
+      "file": "layers/08-fence-wood.png",
+      "width": 2172,
+      "height": 724,
+      "parallax": 0.66
+    },
+    {
+      "id": "09-hedge",
+      "label": "Živica",
+      "file": "layers/09-hedge.png",
+      "width": 2172,
+      "height": 724,
+      "parallax": 0.67
+    },
+    {
+      "id": "10-fence-stone",
+      "label": "Kameni zid",
+      "file": "layers/10-fence-stone.png",
+      "width": 2172,
+      "height": 724,
+      "parallax": 0.7
+    }
+  ],
+  "sprites": [
+    {
+      "id": "tree-left",
+      "label": "Drvo · široko",
+      "file": "sprites/tree-left.png",
+      "width": 724,
+      "height": 1019,
+      "anchor": {
+        "x": 0.5,
+        "y": 1
+      },
+      "suggested": {
+        "x": 394,
+        "y": 410,
+        "width": 131,
+        "height": 185,
+        "parallax": 0.66
+      }
+    },
+    {
+      "id": "tree-right",
+      "label": "Drvo · usko",
+      "file": "sprites/tree-right.png",
+      "width": 586,
+      "height": 1070,
+      "anchor": {
+        "x": 0.5,
+        "y": 1
+      },
+      "suggested": {
+        "x": 1575,
+        "y": 405,
+        "width": 104,
+        "height": 190,
+        "parallax": 0.64
+      }
+    },
+    {
+      "id": "fence-wood",
+      "label": "Siva ograda",
+      "file": "sprites/fence-wood.png",
+      "width": 1408,
+      "height": 388,
+      "anchor": {
+        "x": 0.5,
+        "y": 1
+      },
+      "suggested": {
+        "x": 365,
+        "y": 548,
+        "width": 180,
+        "height": 47,
+        "parallax": 0.66
+      }
+    },
+    {
+      "id": "hedge",
+      "label": "Živica",
+      "file": "sprites/hedge.png",
+      "width": 2026,
+      "height": 299,
+      "anchor": {
+        "x": 0.5,
+        "y": 1
+      },
+      "suggested": {
+        "x": 1370,
+        "y": 518,
+        "width": 440,
+        "height": 66,
+        "parallax": 0.67
+      }
+    },
+    {
+      "id": "fence-stone",
+      "label": "Kameni zid",
+      "file": "sprites/fence-stone.png",
+      "width": 1962,
+      "height": 277,
+      "anchor": {
+        "x": 0.5,
+        "y": 1
+      },
+      "suggested": {
+        "x": 1380,
+        "y": 548,
+        "width": 430,
+        "height": 47,
+        "parallax": 0.7
+      }
+    },
+    {
+      "id": "sun",
+      "label": "Sunce",
+      "file": "sprites/sun.png",
+      "width": 144,
+      "height": 144,
+      "suggested": {
+        "x": 1703,
+        "y": 32,
+        "parallax": 0.025
+      }
+    },
+    {
+      "id": "cloud-01",
+      "label": "Oblak 1",
+      "file": "sprites/cloud-01.png",
+      "width": 258,
+      "height": 75,
+      "suggested": {
+        "x": 75,
+        "y": 119,
+        "parallax": 0.07
+      }
+    },
+    {
+      "id": "cloud-02",
+      "label": "Oblak 2",
+      "file": "sprites/cloud-02.png",
+      "width": 344,
+      "height": 97,
+      "suggested": {
+        "x": 335,
+        "y": 36,
+        "parallax": 0.07
+      }
+    },
+    {
+      "id": "cloud-03",
+      "label": "Oblak 3",
+      "file": "sprites/cloud-03.png",
+      "width": 241,
+      "height": 70,
+      "suggested": {
+        "x": 933,
+        "y": 149,
+        "parallax": 0.07
+      }
+    },
+    {
+      "id": "cloud-04",
+      "label": "Oblak 4",
+      "file": "sprites/cloud-04.png",
+      "width": 357,
+      "height": 101,
+      "suggested": {
+        "x": 1807,
+        "y": 93,
+        "parallax": 0.07
+      }
+    }
+  ],
+  "notes": [
+    "PNG props are reconstructed from the original approved panorama with built-in imagegen; hidden parts are completed, not pixel-exact crops.",
+    "Sky, sun, clouds and skyline reuse the previously approved gray parallax palette. Trees/hedge preserve olive-green colors from the first panorama.",
+    "All full layers are aligned 2172x724 canvases. Sprites are tight independent PNGs with alpha. Choose layers OR equivalent sprites, not both.",
+    "background.png combines sky + far + mid skyline only. It excludes sun, clouds, houses, cafe, trees, fences and road. Use it as an alternative to those three sky/skyline layers.",
+    "Sun and cloud opacity is baked into alpha. Draw at opacity 1. Do not apply 0.38/0.55 a second time.",
+    "Prop placements and parallax values are suggested starting values; adjust relative to cafe and houses. Foreground road/sidewalk covers below y=595.",
+    "Fences and hedge are standalone sections with transparent margins, not guaranteed seamless repeating strips."
+  ]
+}

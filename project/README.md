@@ -17,7 +17,7 @@ Projekt nema dependencyje niti traži instalaciju paketa. Potreban je samo moder
 
 Za zaustavljanje servera pritisni `Ctrl+C` u Terminalu.
 
-> Nemoj otvarati `index.html` dvoklikom jer browser može blokirati JavaScript module kada se stranica otvara kao lokalna datoteka. Koristi lokalni server iz uputa iznad.
+> Nemoj otvarati `index.html` putem `file://`: browser blokira ES module (`type="module"`) učitavanje s lokalne datoteke. Koristi lokalni server i otvori `http://localhost:8080`.
 
 ## Kontrole
 

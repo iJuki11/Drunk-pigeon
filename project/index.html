@@ -25,12 +25,18 @@
           <span>REZULTAT</span>
           <strong id="score-value">0</strong>
         </div>
+        <div id="poop-indicator" class="poop-indicator" aria-label="Punjenje izmeta"><svg viewBox="0 0 24 24"><path d="M6 18c0-3 2-4 4-4-2-3 0-6 3-6 3 0 5 3 3 6 2 0 3 1 3 4z"/></svg><svg viewBox="0 0 24 24"><path d="M6 18c0-3 2-4 4-4-2-3 0-6 3-6 3 0 5 3 3 6 2 0 3 1 3 4z"/></svg><svg viewBox="0 0 24 24"><path d="M6 18c0-3 2-4 4-4-2-3 0-6 3-6 3 0 5 3 3 6 2 0 3 1 3 4z"/></svg><span id="coffee-boost" hidden></span></div>
         <div class="hud-pill" aria-label="Skupljene pive">
           <span class="beer-dot" aria-hidden="true"></span>
           <strong id="beer-value">0</strong>
         </div>
         <div class="hud-pill hud-distance" aria-label="Prijeđena udaljenost">
           <strong id="distance-value">0 m</strong>
+        </div>
+        <div class="hud-health" aria-label="Životi">
+          <svg class="health-heart" viewBox="0 0 24 24" aria-label="Život 1"><path d="M12 21S3 15.2 3 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 9 2.5C21 15.2 12 21 12 21Z"/></svg>
+          <svg class="health-heart" viewBox="0 0 24 24" aria-label="Život 2"><path d="M12 21S3 15.2 3 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 9 2.5C21 15.2 12 21 12 21Z"/></svg>
+          <svg class="health-heart" viewBox="0 0 24 24" aria-label="Život 3"><path d="M12 21S3 15.2 3 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 9 2.5C21 15.2 12 21 12 21Z"/></svg>
         </div>
       </section>
 
@@ -73,11 +79,17 @@
         </button>
       </section>
 
+      <section id="pause-overlay" class="pause-overlay" hidden>
+        <h2>PAUZA</h2>
+        <p>Pritisni Esc ili P za nastavak</p>
+      </section>
+
       <div id="touch-prompt" class="touch-prompt" hidden aria-hidden="true">
         TAPNI ZA ZAMAH
       </div>
     </main>
 
+    <script src="./assets/backgrounds/renderer.js"></script>
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>

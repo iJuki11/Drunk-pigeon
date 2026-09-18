@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="hr"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gradska pozadina · Parallax studio</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#151b1d;color:#e9ece8;font:15px system-ui,-apple-system,sans-serif}main{max-width:1540px;margin:auto;padding:32px}header{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:24px}h1{font-size:28px;letter-spacing:-.8px;margin:7px 0}p{color:#a5b0af;margin:8px 0;font-size:14px}.tag{color:#b9d1c7;font-size:11px;letter-spacing:2px}button,a{font:inherit;color:inherit}button{background:#303c3d;border:1px solid #495554;border-radius:7px;padding:9px 16px;cursor:pointer}button:hover{background:#455454}button.primary{color:#182521;background:#d4e3d2;border-color:#d4e3d2}button:disabled{opacity:.4;cursor:wait}.stage{overflow:hidden;border-radius:10px;border:1px solid #445051;background:repeating-conic-gradient(#a2a9a9 0 25%,#c2c6c4 0 50%) 0/24px 24px}canvas{display:block;width:100%;height:auto;cursor:grab;touch-action:none}canvas:active{cursor:grabbing}.toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:16px 0}label{font-size:13px;color:#c1ccca}.position{display:flex;align-items:center;gap:15px;flex:1;min-width:240px}.position input{flex:1}input{accent-color:#b8d2c3}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:10px}.card{background:#202a2c;border:1px solid #354244;border-radius:8px;padding:14px}.cardhead{display:flex;align-items:center;gap:7px;font-size:12px;white-space:nowrap}.cardhead input{margin:0}.cardhead label{font-size:12px;flex:1}.solo{padding:4px 6px;font-size:11px;border:0;background:#364144}.speed{display:flex;gap:10px;align-items:center;margin-top:15px}.speed input{width:100%;min-width:30px}.speed output{font-variant-numeric:tabular-nums;font-size:12px;min-width:33px;text-align:right}.lower{display:flex;justify-content:space-between;gap:20px;margin-top:20px;color:#99aaa6;font-size:12px;line-height:1.6}.pill{font-size:12px;color:#b3c6bf;border:1px solid #40504a;padding:7px 12px;border-radius:30px;white-space:nowrap}#status{font-size:12px;color:#b6c9c1;min-width:90px}a{color:#bbd9c8}@media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:550px){main{padding:16px}header{display:block}.pill{display:inline-block;margin-top:12px}h1{font-size:23px}.lower{display:block}.grid{gap:7px}.card{padding:10px}.cardhead{white-space:normal}}
+</style>
+<main><header><div><span class="tag">ASSETI ZA IGRU / 01</span><h1>Grad u slojevima.</h1><p>Kafić i kuća u boji. Dvanaest zasebnih slojeva za pomicanje kroz grad.</p></div><span class="pill">2172 × 724 · PNG + alfa</span></header>
+<div class="stage"><canvas id="scene" width="2172" height="724" aria-label="Interaktivni prikaz parallax pozadine"></canvas></div>
+<div class="toolbar"><button id="play" class="primary" disabled>Pokreni</button><button id="reset">Početni kadar</button><label class="position">Pomak <input id="camera" aria-label="Pomak kamere" type="range" min="-8000" max="8000" step="1" value="0"></label><span id="status">Učitavanje…</span></div>
+<div class="toolbar" style="padding-top:0"><label>Brzina kretanja <input id="velocity" aria-label="Brzina kretanja" type="range" min="20" max="500" value="100"></label><button id="all">Svi slojevi</button><button id="none">Sakrij sve</button><p>Povuci scenu ili odaberi „Samo” za izdvojeni sloj.</p></div>
+<div class="grid" id="layers"></div>
+<div class="lower"><span>Prednje kuće su u tri neovisna reda, s prozirnim razmacima.<br>Promjene brzina vrijede samo u ovom pregledu; početne vrijednosti su u manifest.json.</span><span><a href="manifest.json">Postavke za Hermes</a> · <a href="README.md">Upute za uvoz</a><br>Poluprozirnost sunca i oblaka već je ugrađena u PNG.</span></div></main>
+<script>
+const assets=__ASSETS__;
+const W=2172,H=724,canvas=document.querySelector('#scene'),ctx=canvas.getContext('2d');
+let cameraX=0,playing=false,lastTime=0,ready=false;
+const play=document.querySelector('#play'),camera=document.querySelector('#camera'),status=document.querySelector('#status');
+for(const l of assets){
+ l.enabled=true;l.speed=l.parallax;
+ const row=document.createElement('div');row.className='card';
+ row.innerHTML=`<div class="cardhead"><input id="toggle-${l.id}" type="checkbox" checked><label for="toggle-${l.id}">${l.label}</label><button class="solo" aria-label="Prikaži samo ${l.label}">Samo</button></div><div class="speed"><input type="range" aria-label="Parallax brzina: ${l.label}" min="0" max="1.2" step=".01" value="${l.speed}"><output>${l.speed.toFixed(2)}</output></div>`;
+ const check=row.querySelector('input[type=checkbox]');l.checkbox=check;
+ check.onchange=()=>{l.enabled=check.checked;draw()};
+ row.querySelector('.solo').onclick=()=>{for(const a of assets){a.enabled=a===l;a.checkbox.checked=a.enabled}draw()};
+ const slider=row.querySelector('input[type=range]');l.slider=slider;l.output=row.querySelector('output');
+ slider.oninput=()=>{l.speed=Number(slider.value);l.output.value=l.speed.toFixed(2);draw()};
+ if(l.repeat==='fixed')slider.disabled=true;
+ document.querySelector('#layers').append(row);
+}
+function draw(){
+ if(!ready)return;
+ ctx.clearRect(0,0,W,H);ctx.globalAlpha=1;
+ for(const l of assets){
+  if(!l.enabled)continue;
+  if(l.repeat==='fixed'){ctx.drawImage(l.image,0,0,W,H);continue;}
+  const offset=cameraX*l.speed,first=Math.floor(offset/W);
+  for(let k=first;k<=first+1;k++){
+   const x=k*W-offset;ctx.save();
+   if(l.repeat==='mirror'&&Math.abs(k%2)===1){ctx.translate(x+W,0);ctx.scale(-1,1);ctx.drawImage(l.image,0,0,W,H)}
+   else ctx.drawImage(l.image,x,0,W,H);
+   ctx.restore();
+  }
+ }
+ status.textContent=Math.round(cameraX)+' px';
+}
+function pause(){playing=false;play.textContent='Pokreni'}
+play.onclick=()=>{playing=!playing;play.textContent=playing?'Zaustavi':'Pokreni'};
+camera.oninput=()=>{pause();cameraX=Number(camera.value);draw()};
+document.querySelector('#reset').onclick=()=>{pause();cameraX=0;camera.value=0;for(const l of assets){l.speed=l.parallax;l.slider.value=l.speed;l.output.value=l.speed.toFixed(2);l.enabled=true;l.checkbox.checked=true;}draw()};
+document.querySelector('#all').onclick=()=>{for(const l of assets){l.enabled=true;l.checkbox.checked=true}draw()};
+document.querySelector('#none').onclick=()=>{for(const l of assets){l.enabled=false;l.checkbox.checked=false}draw()};
+let drag=null;
+canvas.onpointerdown=e=>{pause();drag={x:e.clientX,camera:cameraX};canvas.setPointerCapture(e.pointerId)};
+canvas.onpointermove=e=>{if(!drag)return;cameraX=drag.camera+(drag.x-e.clientX)*W/canvas.clientWidth;camera.value=cameraX;draw()};
+canvas.onpointerup=canvas.onpointercancel=()=>drag=null;
+Promise.all(assets.map(l=>new Promise((resolve,reject)=>{l.image=new Image();l.image.onload=resolve;l.image.onerror=reject;l.image.src=l.url})))
+ .then(()=>{ready=true;play.disabled=false;draw();document.body.dataset.ready='true'})
+ .catch(()=>{status.textContent='Greška učitavanja slika';document.body.dataset.ready='error'});
+function frame(t){const dt=Math.min((t-lastTime)/1000,.06);lastTime=t;if(playing&&ready){cameraX+=Number(document.querySelector('#velocity').value)*dt;camera.value=cameraX;draw()}requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+</script></html>

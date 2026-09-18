@@ -1,0 +1,127 @@
+export const ZOOM_BACKGROUND = 0.5;
+
+export const BACKGROUND_DEPTHS = Object.freeze({
+  sky: 0,
+  sun: 0.35,
+  clouds: 0.45,
+  far: 0.62,
+  mid: 0.74,
+  "06a-houses-back": 0.84,
+  "06b-houses-middle": 0.90,
+  "06c-houses-front": 0.96,
+  house: 1,
+  trees: 0.95,
+  cafe: 1,
+  hedge: 0.95,
+  lamps: 0.95,
+  road: 1,
+});
+
+/** Loads and renders the exported parallax scene without per-frame allocations. */
+export class ParallaxBackground {
+  constructor() {
+    this.scene = null;
+    this.images = new Map();
+    this.ready = false;
+    this.error = null;
+    this.scale = 1;
+    this.baseScale = 1;
+    this.viewportWidth = 0;
+    this.viewportHeight = 0;
+    this.anchorX = 0;
+    this.groundScreenY = 0;
+  }
+
+  async load(url) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const project = await response.json();
+      if (!project.scene || !Array.isArray(project.scene.layers) || !Array.isArray(project.assets)) {
+        throw new Error("neispravan format parallax scene");
+      }
+      const decoded = await Promise.all(project.assets.map(async (asset) => {
+        const image = new Image();
+        image.src = asset.data;
+        await image.decode();
+        return [asset.id, image];
+      }));
+      this.scene = project.scene;
+      this.images = new Map(decoded);
+      this.error = null;
+      this.ready = true;
+      return this;
+    } catch (error) {
+      this.ready = false;
+      this.error = error instanceof Error ? error : new Error(String(error));
+      console.error("[parallax] failed to load background:", this.error);
+      throw this.error;
+    }
+  }
+
+  resize(viewport) {
+    if (!this.scene) return;
+    this.viewportWidth = Math.max(1, viewport.width);
+    this.viewportHeight = Math.max(1, viewport.height);
+    this.anchorX = Number.isFinite(viewport.anchorX) ? viewport.anchorX : this.viewportWidth * 0.5;
+    this.baseScale = this.viewportHeight / this.scene.canvas.height;
+    this.scale = this.baseScale * ZOOM_BACKGROUND;
+    this.groundScreenY = (viewport.verticalOffset || 0) + this.scene.groundY * this.scale;
+  }
+
+  getGroundY() {
+    return this.groundScreenY;
+  }
+
+  draw(ctx, worldX, viewport) {
+    if (!this.ready || !this.scene) return false;
+    this.resize(viewport);
+    const scene = this.scene;
+    const L = scene.loop.end - scene.loop.start;
+    if (!(L > 0)) return false;
+    const C = Number.isFinite(worldX) ? worldX : 0;
+    const verticalOffset = viewport.verticalOffset || 0;
+    const viewWidth = this.viewportWidth;
+    const viewHeight = this.viewportHeight;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, viewWidth, viewHeight);
+    ctx.clip();
+    for (const layer of scene.layers) {
+      if (layer.visible === false || layer.id === "sky") continue;
+      const depth = BACKGROUND_DEPTHS[layer.id] ?? layer.parallax ?? 0;
+      if (depth <= 0) continue;
+      const layerAlpha = Number.isFinite(layer.opacity) ? layer.opacity : 1;
+      if (layerAlpha <= 0) continue;
+      for (const object of layer.objects || []) {
+        if (object.visible === false || object.width <= 0 || object.height <= 0) continue;
+        const image = this.images.get(object.assetId);
+        if (!image) continue;
+        const minWorldX = C + this.anchorX + (0 - this.anchorX) / depth;
+        const maxWorldX = C + this.anchorX + (viewWidth - this.anchorX) / depth;
+        const firstK = Math.ceil((minWorldX - object.x - object.width) / L);
+        const lastK = Math.floor((maxWorldX - object.x) / L);
+        const width = object.width * depth * this.scale;
+        const height = object.height * depth * this.scale;
+        const y = verticalOffset + (scene.groundY + depth * (object.y - scene.groundY)) * this.scale;
+        for (let k = firstK; k <= lastK; k += 1) {
+          const worldObjectX = object.x + k * L;
+          const x = this.anchorX + depth * (worldObjectX - C - this.anchorX) * this.scale;
+          ctx.save();
+          ctx.globalAlpha *= layerAlpha * (Number.isFinite(object.opacity) ? object.opacity : 1);
+          if (object.flipX || object.flipY) {
+            ctx.translate(object.flipX ? x + width : x, object.flipY ? y + height : y);
+            ctx.scale(object.flipX ? -1 : 1, object.flipY ? -1 : 1);
+            ctx.drawImage(image, 0, 0, width, height);
+          } else {
+            ctx.drawImage(image, x, y, width, height);
+          }
+          ctx.restore();
+        }
+      }
+    }
+    ctx.restore();
+    return true;
+  }
+}
