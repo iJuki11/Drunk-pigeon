@@ -50,6 +50,19 @@ export class CollisionEffects {
     this.effects.length = 0;
   }
 
+  /** Visual recoil only. Apply it around drawing the hurt character. */
+  getRecoil(hit) {
+    if (!hit || hit.age >= .3) return { x: 0, y: 0, rotation: 0 };
+    const t = clamp(hit.age / .3);
+    const kick = Math.sin(t * Math.PI) * (1 - t);
+    const shake = Math.sin(t * Math.PI * 6) * (1 - t) ** 2;
+    return {
+      x: (hit.direction * 12 * kick + shake * 2) * hit.scale,
+      y: -5 * kick * hit.scale,
+      rotation: hit.direction * .24 * kick,
+    };
+  }
+
   draw(ctx) {
     for (const hit of this.effects) this.drawHit(ctx, hit);
   }

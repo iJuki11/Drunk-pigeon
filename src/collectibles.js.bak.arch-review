@@ -1,9 +1,6 @@
 const SIZE = 36;
 export class CollectibleManager {
-  // onCollect was removed — game.js reads the return value of collect() and
-  // mutates game state itself, so the callback was unused. Add it back if a
-  // future feature needs to react to collection outside the game loop.
-  constructor() { this.items = []; this.spawnTimer = 0; this.nextSpawn = .8; this.coffeeTimer = 0; this.nextCoffee = 3 + Math.random() * 2; }
+  constructor(onCollect) { this.onCollect = onCollect; this.items = []; this.spawnTimer = 0; this.nextSpawn = .8; this.coffeeTimer = 0; this.nextCoffee = 3 + Math.random() * 2; }
   reset() { this.items = []; this.spawnTimer = 0; this.coffeeTimer = 0; this.nextSpawn = .75; this.nextCoffee = 3 + Math.random() * 2; }
   update(dt, speed, width, height, groundY) {
     this.spawnTimer += dt; this.coffeeTimer += dt;
@@ -13,7 +10,7 @@ export class CollectibleManager {
     for (const item of this.items) { item.x -= speed * dt; item.phase += dt * 4; }
     this.items = this.items.filter((item) => item.x > -SIZE && !item.collected);
   }
-  collect(bounds) { const out = []; for (const item of this.items) { const r = item.size * .38; const x = Math.max(bounds.left, Math.min(item.x, bounds.right)); const y = Math.max(bounds.top, Math.min(item.y, bounds.bottom)); if ((item.x-x)**2 + (item.y-y)**2 < r*r) { item.collected = true; out.push(item); } } return out; }
+  collect(bounds) { const out = []; for (const item of this.items) { const r = item.size * .38; const x = Math.max(bounds.left, Math.min(item.x, bounds.right)); const y = Math.max(bounds.top, Math.min(item.y, bounds.bottom)); if ((item.x-x)**2 + (item.y-y)**2 < r*r) { item.collected = true; out.push(item); this.onCollect?.(item); } } return out; }
   draw(ctx) { for (const item of this.items) { const bob = Math.sin(item.phase) * 4; const scale = 1 + Math.sin(item.phase * .7) * .035; if (item.type === "coffee") drawCoffee(ctx, item.x, item.y + bob, scale); else drawBeer(ctx, item.x, item.y + bob, scale); } }
 }
 

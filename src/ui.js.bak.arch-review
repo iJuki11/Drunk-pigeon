@@ -62,12 +62,13 @@ export class GameUI {
     this.pauseOverlay.hidden = true;
   }
 
-  showGameOver({ score, beers, coffees }) {
+  showGameOver({ score, distance, beers, coffees }) {
     this.hidePaused();
     this.hud.hidden = true;
     this.touchPrompt.hidden = true;
     this.gameOverScreen.hidden = false;
     if (this.finalScore) this.finalScore.textContent = score.toLocaleString("hr-HR");
+    if (this.finalDistance) this.finalDistance.textContent = `${Math.floor(distance)} m`;
     if (this.finalBeers) this.finalBeers.textContent = beers.toString();
     const finalCoffees = document.querySelector("#final-coffees");
     if (finalCoffees) finalCoffees.textContent = (coffees ?? 0).toString();

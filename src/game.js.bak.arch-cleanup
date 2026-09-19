@@ -2,8 +2,17 @@ import { Player } from "./player.js";
 import { CollectibleManager } from "./collectibles.js";
 import { AssetLoader } from "./assets.js";
 import { AudioBus } from "./audio.js";
+import { Health } from "./health.js";
 import { PrsanManager, PadobranManager } from "./enemies.js";
 import { CollisionEffects, COLLISION_EFFECT_DURATION } from "./collision_effects.js";
+// PoopManager removed — the poop mechanic is no longer part of the game.
+// To re-enable, restore the import below and the construction/update/draw
+// lines that were deleted alongside it.
+// import { PoopManager } from "./poop.js";
+// Toni and Decki are temporarily disabled — see commented lines below
+// to re-enable. PrsanManager is the only active enemy for now.
+// import { ToniManager } from "./enemies.js";
+// import { DeckiManager } from "./deckis.js";
 import { SKIP_LAYER_IDS, ZOOM_BACKGROUND } from "./parallax-background.js";
 
 const CITY_WORLD_LENGTH = 4500;
@@ -39,6 +48,7 @@ export class Game {
     this.frameTiming = { average: 0, stdDev: 0, samples: 0, withinBudget: true };
     this.frameTimingWarningIssued = false;
     this.popups = [];
+    this.scorePenalty = 0;
     this.cachedGroundY = 0;
     this.cachedSkyGradient = null;
     this.cachedSkyKey = "";
@@ -52,17 +62,28 @@ export class Game {
     };
     this.collectibles = new CollectibleManager();
     this.player = new Player(90, 300);
-    // Player owns its own HP and invincibility window. takeDamage() on
-    // Player already checks isInvincible() internally — no external gate
-    // needed. PrsanManager and any future damage source just calls
-    // player.takeDamage(amount).
+    this.health = new Health();
+    this.health.isInvincible = () => {
+      // Read the player's invincibility window directly so even damage
+      // funnels that bypass PrsanManager (future enemies) respect it.
+      const now = performance.now() / 1000;
+      return typeof this.player?.isInvincible === "function" && this.player.isInvincible(now);
+    };
     this.collisionEffects = new CollisionEffects();
     this.audio = new AudioBus();
     this.assets = new AssetLoader();
-    this.assets.preload([]);
+    this.assets.preload([
+      { id: "toni-prepare", src: "./assets/images/custom/toni_prepare.png" },
+      { id: "toni-shoot", src: "./assets/images/custom/toni_shoot.png" },
+      { id: "decki", src: "./assets/images/custom/decki.png" },
+    ]);
+    // Toni and Decki are temporarily disabled. Re-enable by uncommenting
+    // the imports above and the construction/reset/update/draw blocks below.
+    // this.toniManager = new ToniManager(this.assets, this.audio, this.health);
+    // this.deckiManager = new DeckiManager(this.assets, this.audio);
     this.prsanManager = new PrsanManager({
       audio: this.audio,
-      player: this.player,
+      health: this.health,
       // Called the moment a prsan hit is accepted. Triggers the visual
       // burst, the hit sound, and arms the 2-second invincibility window.
       onPlayerHit: (x, y, config) => {
@@ -83,12 +104,10 @@ export class Game {
         // solid for the dramatic hit moment and starts blinking soon
         // after. Tunable here — lower = earlier blink, higher = later.
         this.player.grantInvincibility(now, 2, 0.15);
-        // Refresh HUD so the lost heart shows up immediately. takeDamage
-        // already mutated player.hp; snapshot() will pick up the new value.
-        this.ui.update(this.snapshot());
       },
     });
     this.padobranManager = new PadobranManager({ minInterval: 5, maxInterval: 15 });
+    // this.poopManager = new PoopManager(this.audio, (x, y) => { this.scorePenalty -= 200; this.popups.push({ x, y, age: 0, value: "-200", negative: true }); });
 
     this.parallaxProject = null;
     this.parallaxImages = new Map();
@@ -139,18 +158,19 @@ export class Game {
   }
 
   start() {
+    this.health.reset();
     this.beers = 0;
     this.coffees = 0;
+    this.scorePenalty = 0;
     this.popups = [];
     this.collisionEffects.clear();
     this.collectibles.reset();
+    // this.toniManager.reset();
+    // this.deckiManager.reset();
     this.prsanManager.reset();
     this.padobranManager.reset();
-    // Reset in place rather than re-instantiating: managers (PrsanManager)
-    // already hold a reference to `player` from the constructor, and
-    // swapping `this.player` to a fresh instance would orphan that
-    // reference. Player.reset() restores HP, invincibility, velocity.
-    this.player.reset(this.width * 0.25, this.height * 0.45);
+    // this.poopManager.reset();
+    this.player = new Player(this.width * 0.25, this.height * 0.45);
     this.player.flap();
     this.state = STATE.PLAYING;
     this.input.setEnabled(true);
@@ -200,18 +220,11 @@ export class Game {
     // Mutate the cached object in place — the UI only reads fields, and
     // allocating a fresh one per frame is wasted GC pressure at 60 fps.
     const s = this.uiSnapshot;
-    s.score = this.computeScore();
+    s.score = this.beers + this.coffees;
     s.beers = this.beers;
     s.coffees = this.coffees;
-    s.health = this.player.hp;
+    s.health = this.health.getCurrent();
     return s;
-  }
-
-  computeScore() {
-    // Single source of truth for "what is the score". If the formula
-    // ever grows (distance multiplier, combo bonus, …) there is now
-    // exactly one place to change it.
-    return this.beers + this.coffees;
   }
 
   frame(timestamp) {
@@ -274,6 +287,9 @@ export class Game {
 
     const groundY = this.getGroundY();
     this.collectibles.update(deltaTime, this.speed, this.width, this.height, groundY);
+    // this.deckiManager.update(deltaTime, this.width, groundY);
+    // this.poopManager.update(deltaTime, this.height, []);
+    // this.toniManager.update(deltaTime, this.width, this.height, this.player);
     this.prsanManager.update(deltaTime, this.width, this.height, this.player);
     this.padobranManager.update(deltaTime, this.width, this.height);
     this.collisionEffects.update(deltaTime);
@@ -289,11 +305,8 @@ export class Game {
         this.audio.playBeer();
         this.popups.push({ x: item.x, y: item.y, age: 0, value: "+1" });
       }
+      // snapshot() recomputes score from beers + coffees, no manual update.
     }
-    // Refresh HUD only when something visible to it changed (collect
-    // event here; hit event in onPlayerHit; start/end reset it).
-    // The DOM cache in ui.js is a backstop — these calls are cheap.
-    if (collectedItems.length > 0) this.ui.update(this.snapshot());
 
     for (const popup of this.popups) {
       popup.age += deltaTime;
@@ -304,8 +317,10 @@ export class Game {
       if (this.popups[i].age >= 0.85) this.popups.splice(i, 1);
     }
 
+    this.ui.update(this.snapshot());
+
     const bounds = this.player.getBounds();
-    if (bounds.top <= 4 || bounds.bottom >= groundY || this.player.isDead()) this.end();
+    if (bounds.top <= 4 || bounds.bottom >= groundY || this.health.isDead()) this.end();
   }
 
   getGroundY() {
@@ -471,6 +486,9 @@ export class Game {
     }
 
     this.collectibles.draw(context);
+    // this.deckiManager.draw(context);
+    // this.poopManager.draw(context);
+    // this.toniManager.draw(context);
     this.prsanManager.draw(context);
     this.padobranManager.draw(context);
     // Render the player only on flash-visible frames while invincible; the
