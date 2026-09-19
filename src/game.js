@@ -2,7 +2,8 @@ import { Player } from "./player.js";
 import { CollectibleManager } from "./collectibles.js";
 import { AssetLoader } from "./assets.js";
 import { AudioBus } from "./audio.js";
-import { PrsanManager, PadobranManager } from "./enemies.js";
+import { AirplaneManager } from "./enemies.js";
+import { NPCManager } from "./npc_manager.js";
 import { CollisionEffects, COLLISION_EFFECT_DURATION } from "./collision_effects.js";
 import { SKIP_LAYER_IDS, ZOOM_BACKGROUND } from "./parallax-background.js";
 
@@ -74,11 +75,11 @@ export class Game {
       });
     // Player owns its own HP and invincibility window. takeDamage() on
     // Player already checks isInvincible() internally — no external gate
-    // needed. PrsanManager and any future damage source just calls
+    // needed. AirplaneManager and any future damage source just calls
     // player.takeDamage(amount).
     this.collisionEffects = new CollisionEffects();
     this.audio = new AudioBus();
-    this.prsanManager = new PrsanManager({
+    this.airplaneManager = new AirplaneManager({
       audio: this.audio,
       player: this.player,
       // Called the moment a prsan hit is accepted. Triggers the visual
@@ -106,7 +107,7 @@ export class Game {
         this.ui.update(this.snapshot());
       },
     });
-    this.padobranManager = new PadobranManager({ minInterval: 5, maxInterval: 15 });
+    this.npcManager = new NPCManager();
 
     this.parallaxProject = null;
     this.parallaxImages = new Map();
@@ -162,9 +163,9 @@ export class Game {
     this.popups = [];
     this.collisionEffects.clear();
     this.collectibles.reset();
-    this.prsanManager.reset();
-    this.padobranManager.reset();
-    // Reset in place rather than re-instantiating: managers (PrsanManager)
+    this.airplaneManager.reset();
+    this.npcManager.reset();
+    // Reset in place rather than re-instantiating: managers (AirplaneManager)
     // already hold a reference to `player` from the constructor, and
     // swapping `this.player` to a fresh instance would orphan that
     // reference. Player.reset() restores HP, invincibility, velocity.
@@ -292,8 +293,8 @@ export class Game {
 
     const groundY = this.getGroundY();
     this.collectibles.update(deltaTime, this.speed, this.width, this.height, groundY);
-    this.prsanManager.update(deltaTime, this.width, this.height, this.player);
-    this.padobranManager.update(deltaTime, this.width, this.height);
+    this.airplaneManager.update(deltaTime, this.width, this.height, this.player);
+    this.npcManager.update(deltaTime, this.width, this.height);
     this.collisionEffects.update(deltaTime);
     const collectedItems = this.collectibles.collect(this.player.getBounds());
 
@@ -489,8 +490,8 @@ export class Game {
     }
 
     this.collectibles.draw(context);
-    this.prsanManager.draw(context);
-    this.padobranManager.draw(context);
+    this.airplaneManager.draw(context);
+    this.npcManager.draw(context);
     // Render the player only on flash-visible frames while invincible; the
     // collision effects overlay sits between the enemy and the player so
     // the burst reads on top of the plane and underneath the recoil.

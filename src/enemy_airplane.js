@@ -1,5 +1,5 @@
 const TAU = Math.PI * 2;
-const HEAD_URL = new URL('../assets/images/toni.png', import.meta.url).href;
+const HEAD_URL = new URL('../assets/images/enemyBird_head.png', import.meta.url).href;
 const INK = '#3d4547';
 let sharedHead;
 
@@ -20,7 +20,7 @@ function loadHead() {
 }
 
 /** A code-drawn airplane with a transparent portrait, using the Player draw/update API. */
-export class EnemyPrsan {
+export class EnemyAirplane {
   constructor(x, y, { scale = 0.8, direction = 1, velocityX = 0 } = {}) {
     this.x = x;
     this.y = y;
@@ -138,13 +138,6 @@ ctx.beginPath(); ctx.moveTo(-22, -30); ctx.lineTo(-17, -10);
 ctx.moveTo(3, -31); ctx.lineTo(7, -9); ctx.stroke();
 ctx.strokeStyle = INK; ctx.lineWidth = 2.5;
 
-if (this.head) {
-  // Keep the original transparent image and its aspect ratio intact.
-  // Its neck overlaps the shirt and is covered by the cockpit rim below.
-  const headHeight = 89;
-  const headWidth = headHeight * this.head.naturalWidth / this.head.naturalHeight;
-  ctx.drawImage(this.head, -10 - headWidth / 2, -108, headWidth, headHeight);
-}
 
 // Main hull masks the lower body, making the portrait part of the cockpit.
 shape('#B94F46', () => {
@@ -200,6 +193,14 @@ ctx.quadraticCurveTo(-5, 26, 21, 17);
 ctx.stroke();
 ctx.strokeStyle = INK; ctx.lineWidth = 2.5;
 
+if (this.head) {
+  // Keep the original transparent image and its aspect ratio intact.
+  // Its neck overlaps the shirt and is covered by the cockpit rim below.
+  const headHeight = 105;
+  const headWidth = headHeight * this.head.naturalWidth / this.head.naturalHeight;
+  ctx.drawImage(this.head, -15 - headWidth / 2, -98, headWidth, headHeight);
+}
+
 // A projected spinning two-blade propeller; the shaft stays on the nose.
 // Four fading past positions suggest speed without a flashing full disk.
 for (let trail = 3; trail >= 0; trail -= 1) {
@@ -223,4 +224,4 @@ ctx.restore();
   }
 }
 
-export default EnemyPrsan;
+export default EnemyAirplane;

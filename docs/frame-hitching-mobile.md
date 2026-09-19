@@ -197,4 +197,6 @@ Svaka faza ima vlastiti backup suffix:
 - Faza 7: `.bak.faza7` (parallax JSON + cache)
 - Faza 8: `.bak.faza8` (UI DOM caching + parallax decode prioritization)
 
-Ako se nešto pokvari, restore s `cp src/X.js.bak.fazaN src/X.js`.
+Svi backup fajlovi su preseljeni u `archive/` direktorij u rootu repozitorija — tamo ih traži kad ti treba starija verzija koda ili kad radiš novi backup.
+
+Ako se nešto pokvari, restore s `cp archive/X.js.bak.fazaN src/X.js`.

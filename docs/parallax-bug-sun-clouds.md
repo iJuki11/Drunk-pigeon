@@ -104,3 +104,5 @@ Vidjeti "Trenutni fix" gore. Brzo, sigurno, ali gubi vizualni element.
 ## Backup oznake
 
 - Faza 9: `*.bak.faza9`
+
+Svi backup fajlovi su preseljeni u `archive/` direktorij u rootu repozitorija — tamo ih traži kad ti treba starija verzija koda ili kad radiš novi backup.
