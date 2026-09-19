@@ -16,3 +16,4 @@ project/tests/
 
 # Sistemski fajlovi
 **/.DS_Store
+.opencode

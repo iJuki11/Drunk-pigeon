@@ -61,12 +61,15 @@ export class AudioBus {
 
   playBeer() { this.tone(440, 0.08, "square", 660, 0.16); }
   playCoffee() { this.tone(330, 0.08, "square", 250, 0.16); }
+  playShot() { this.noise(0.2, 0.16); this.tone(180, 0.2, "sawtooth", 900, 0.12); }
   playHit() { this.tone(90, 0.15, "triangle", 45, 0.2); }
-  playGameOver() {
+  stopAirplane() {
     [440, 350, 260, 180].forEach((frequency, index) => {
       window.setTimeout(() => this.tone(frequency, 0.14, "square", frequency * 0.8, 0.12), index * 140);
     });
   }
+  playPause() { this.tone(600, 0.05, "square", 600, 0.12); }
+
   // ---- Background music ---------------------------------------------------
   // Long-form music tracks need a real <audio> element because Web Audio
   // oscillators can't loop MP3s. We route the element through a separate

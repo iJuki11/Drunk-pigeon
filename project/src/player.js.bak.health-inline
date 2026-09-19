@@ -1,5 +1,3 @@
-const MAX_HP = 3;
-
 export class Player {
   constructor(x, y) {
     this.x = x;
@@ -9,7 +7,6 @@ export class Player {
     this.height = 48;
     this.rotation = 0;
     this.wingPhase = 0;
-    this.hp = MAX_HP;
     // Wall-clock seconds (performance.now() / 1000) until which the player
     // cannot take damage again. Set when damage is applied; reset on flap.
     this.invincibleUntil = 0;
@@ -80,24 +77,9 @@ export class Player {
     this.velocityY = 0;
     this.rotation = 0;
     this.wingPhase = 0;
-    this.hp = MAX_HP;
     this.invincibleUntil = 0;
     this.invincibilityFlashStart = 0;
     this.flashVisible = true;
-  }
-
-  // Single damage gate: invincibility window is checked here, so every
-  // caller (PrsanManager today, anything new tomorrow) gets the same
-  // protection without having to wire an external predicate.
-  takeDamage(amount = 1) {
-    const now = performance.now() / 1000;
-    if (this.isInvincible(now)) return this.hp;
-    this.hp = Math.max(0, this.hp - Math.max(0, Number(amount) || 0));
-    return this.hp;
-  }
-
-  isDead() {
-    return this.hp <= 0;
   }
 
   flap() {

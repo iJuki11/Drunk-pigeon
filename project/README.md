@@ -45,6 +45,8 @@ assets/
 
 Grafika se trenutno crta kroz Canvas kao placeholder. Klase `Player` i `CollectibleManager` odvojene su kako bi se kasnije jednostavno zamijenile finalnim spriteovima.
 
+Detaljna mapa modula, tko što čita/mutira i gdje cure granice — u [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md). Čitaj to prije većih izmjena.
+
 ## GitHub Pages (kasniji korak)
 
 Projekt koristi relativne putanje i ne treba build korak, pa se može objaviti izravno iz root mape repozitorija putem GitHub Pagesa. Za sada deployment nije konfiguriran.

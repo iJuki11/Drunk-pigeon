@@ -27,9 +27,9 @@ export const PRSAN_RECIPES = Object.freeze({
  * and reading them inside `spawnOne` / the active-instance branch.
  */
 export class PrsanManager {
-  constructor({ audio, player, recipes = PRSAN_RECIPES, minInterval = 10, maxInterval = 15, spawnMarginTop = 80, spawnMarginBottom = 80, onPlayerHit } = {}) {
+  constructor({ audio, health, recipes = PRSAN_RECIPES, minInterval = 10, maxInterval = 15, spawnMarginTop = 80, spawnMarginBottom = 80, onPlayerHit } = {}) {
     this.audio = audio;
-    this.player = player;
+    this.health = health;
     this.recipes = recipes;
     this.minInterval = minInterval;
     this.maxInterval = maxInterval;
@@ -130,12 +130,12 @@ export class PrsanManager {
     }
 
     // Collision: AABB overlap with the player hitbox. The damage gate lives
-    // inside Player.takeDamage() — it checks the invincibility window and
-    // is a no-op while invincible. We additionally skip the collision branch
-    // here so we don't even spend the AABB test during the post-hit grace
-    // period and don't log "hit player" twice in a row.
+    // on Health (it already checks the player invincibility callback set up
+    // in game.js). We additionally skip the collision branch here so we
+    // don't even spend the AABB test during the post-hit grace period —
+    // keeps the manager from logging "hit player" twice in a row.
     const playerBounds = player?.getBounds?.();
-    const playerInvincible = this.player?.isInvincible?.(performance.now() / 1000) === true;
+    const playerInvincible = this.health?.isInvincible?.() === true;
     if (playerBounds && entry.damageCooldown === 0 && !playerInvincible) {
       const e = entry.enemy.getBounds();
       const overlaps = !(
@@ -145,7 +145,7 @@ export class PrsanManager {
         e.top > playerBounds.bottom
       );
       if (overlaps) {
-        this.player?.takeDamage?.(entry.config.damage ?? 1);
+        this.health?.takeDamage?.(entry.config.damage ?? 1);
         // Damage has been applied; start cooldown so a single collision
         // doesn't drain the whole healthbar in one pass.
         entry.damageCooldown = 0.6;
