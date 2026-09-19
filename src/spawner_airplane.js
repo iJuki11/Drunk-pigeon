@@ -9,7 +9,7 @@ import { EnemyAirplane } from "./enemy_airplane.js";
 export const AIRPLANE_RECIPES = Object.freeze({
   default: Object.freeze({
     scale: 0.8,
-    minSpeed: 150,         // px/s — slowest pass (half of original 180)
+    minSpeed: 200,         // px/s — slowest pass (half of original 180)
     maxSpeed: 360,        // px/s — fastest pass (double of original 180)
     spawnMargin: 120,     // px past the spawning edge
     scorePenalty: 0,
