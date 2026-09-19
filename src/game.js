@@ -51,15 +51,33 @@ export class Game {
       health: 0,
     };
     this.collectibles = new CollectibleManager();
-    this.player = new Player(90, 300);
+    this.assets = new AssetLoader();
+    this.assets.preload([]);
+    // Bird SVG parts (body, wing, hat, leftLeg, rightLeg) are loaded once
+    // and handed to Player. Player.draw() skips frames until parts arrive.
+    this.player = new Player(90, 300, null);
+    this.assets
+      .loadSvgParts("./assets/images/bird/bird_image.svg", [
+        "body",
+        "wing",
+        "hat",
+        "leftLeg",
+        "rightLeg",
+      ])
+      .then((parts) => {
+        this.player.parts = parts;
+      })
+      .catch((err) => {
+        // Bird won't render until this resolves. Log once so the failure
+        // doesn't get swallowed silently.
+        console.error("Failed to load bird SVG parts:", err);
+      });
     // Player owns its own HP and invincibility window. takeDamage() on
     // Player already checks isInvincible() internally — no external gate
     // needed. PrsanManager and any future damage source just calls
     // player.takeDamage(amount).
     this.collisionEffects = new CollisionEffects();
     this.audio = new AudioBus();
-    this.assets = new AssetLoader();
-    this.assets.preload([]);
     this.prsanManager = new PrsanManager({
       audio: this.audio,
       player: this.player,

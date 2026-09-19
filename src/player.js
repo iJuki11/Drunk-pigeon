@@ -1,98 +1,241 @@
+const BIRD_VIEW_W = 840;
+const BIRD_VIEW_H = 1080;
+
+// ~20% larger than before.
+const BIRD_SCALE = 0.062 * 1.2;
+
+// Pivots in SVG viewBox coordinates.
+// Fine-tune wing pivot visually if needed.
+const BIRD_PIVOTS = {
+  birdCenter: { x: 462, y: 520 },
+
+  // Shoulder / attachment point on the RIGHT side of the wing.
+  wing: { x: 340, y: 840 },
+
+  leftHip: { x: 416, y: 926 },
+  rightHip: { x: 292, y: 910 },
+};
+
+// --------------------------------------------------
+// WING
+// --------------------------------------------------
+
+const WING_BASE_ROTATION = -0.15;
+const WING_FLAP_MULTIPLIER = 0.9;
+const WING_PHASE_SPEED = 12;
+
+// How long the old sinus-style flap remains active after a tap.
+const WING_ANIMATION_DURATION = 0.30;
+
+// --------------------------------------------------
+// HAT
+// --------------------------------------------------
+
+const HAT_HOP_DURATION = 0.32;
+
+// Stronger hat animation.
+const HAT_HOP_HEIGHT = 38;
+const HAT_HOP_SCALE = 0.18;
+const HAT_HOP_ROTATION = -0.15;
+
+// --------------------------------------------------
+// LEGS
+// --------------------------------------------------
+
+const LEG_HZ_LEFT = 1.2;
+const LEG_HZ_RIGHT = 0.9;
+const LEG_AMPLITUDE = 0.087; // ~5°
+const LEG_PHASE_OFFSET = 1.1;
+
+// --------------------------------------------------
+// PLAYER
+// --------------------------------------------------
+
 const MAX_HP = 3;
 
 export class Player {
-  constructor(x, y) {
+  constructor(x, y, parts = null) {
     this.x = x;
     this.y = y;
+
     this.velocityY = 0;
+    this.rotation = 0;
+
     this.width = 56;
     this.height = 48;
-    this.rotation = 0;
-    this.wingPhase = 0;
+
+    // ------------------------------------------------
+    // HEALTH
+    // ------------------------------------------------
+
     this.hp = MAX_HP;
-    // Wall-clock seconds (performance.now() / 1000) until which the player
-    // cannot take damage again. Set when damage is applied; reset on flap.
+
+    // ------------------------------------------------
+    // INVINCIBILITY
+    // ------------------------------------------------
+
     this.invincibleUntil = 0;
-    // Visual flash — toggled while invincible so the player reads as blinking.
+    this.invincibilityFlashStart = 0;
     this.flashVisible = true;
+
+    // ------------------------------------------------
+    // SVG PARTS
+    // ------------------------------------------------
+
+    // Expected:
+    // parts.body
+    // parts.wing
+    // parts.hat
+    // parts.leftLeg
+    // parts.rightLeg
+    this.parts = parts;
+
+    // ------------------------------------------------
+    // WING ANIMATION
+    // ------------------------------------------------
+
+    this.wingPhase = 0;
+    this.wingAnimating = false;
+    this.wingAnimationTime = 0;
+
+    // ------------------------------------------------
+    // OTHER ANIMATIONS
+    // ------------------------------------------------
+
+    this.hatHopProgress = 0;
+    this.legTime = 0;
   }
 
-  // Returns true if damage should be ignored (still invincible).
+  // --------------------------------------------------
+  // ASSETS
+  // --------------------------------------------------
+
+  setParts(parts) {
+    this.parts = parts;
+  }
+
+  // --------------------------------------------------
+  // DAMAGE / INVINCIBILITY
+  // --------------------------------------------------
+
   canTakeDamage(nowSeconds) {
     return nowSeconds >= this.invincibleUntil;
   }
 
-  // Apply the post-hit invincibility window. The actual *visual* flashing
-  // starts after `flashDelaySeconds` — by then the collision burst has
-  // already played out, so the bird keeps solid for that beat and only
-  // starts blinking once the burst is gone.
-  grantInvincibility(nowSeconds, durationSeconds = 2, flashDelaySeconds = 0) {
-    this.invincibleUntil = Math.max(this.invincibleUntil, nowSeconds + durationSeconds);
-    // Earliest moment we should start the blink phase. Stored so shouldDraw
-    // can decide whether to render the player at all.
-    this.invincibilityFlashStart = nowSeconds + Math.max(0, flashDelaySeconds);
+  grantInvincibility(
+    nowSeconds,
+    durationSeconds = 2,
+    flashDelaySeconds = 0
+  ) {
+    this.invincibleUntil = Math.max(
+      this.invincibleUntil,
+      nowSeconds + durationSeconds
+    );
+
+    this.invincibilityFlashStart =
+      nowSeconds + Math.max(0, flashDelaySeconds);
   }
 
   isInvincible(nowSeconds) {
     return nowSeconds < this.invincibleUntil;
   }
 
-  // Returns true if the player should be rendered this frame.
-  // Before the flash window starts (e.g. while the collision burst is
-  // playing out) we always render — invisible mid-burst looks like a bug.
-  // During the flash window we toggle visibility at ~12 Hz.
-  // After the window expires we always render again.
   shouldDraw(nowSeconds) {
+    if (!this.parts) {
+      return false;
+    }
+
     if (nowSeconds < this.invincibleUntil) {
-      if (nowSeconds < (this.invincibilityFlashStart || 0)) {
-        // Still in the warm-up; render solid.
-        if (!this.flashVisible) this.flashVisible = true;
+      if (nowSeconds < this.invincibilityFlashStart) {
+        this.flashVisible = true;
         return true;
       }
-      // Blink at ~12 Hz during the actual flash window.
-      this.flashVisible = Math.floor((nowSeconds * 12) % 2) === 0;
+
+      this.flashVisible =
+        Math.floor((nowSeconds * 12) % 2) === 0;
+
       return this.flashVisible;
     }
-    if (!this.flashVisible) this.flashVisible = true;
+
+    this.flashVisible = true;
     return true;
   }
 
-  // Opacity (0..1) for the player during the invincibility flash window.
-  // Before the window starts, or after it ends, we render fully opaque.
-  // During the blink we oscillate between `peakOpacity` (default 1.0) and
-  // `troughOpacity` (default 0.3) using a sine wave at the same 12 Hz rate
-  // as the binary blink, so the transition feels smoother than on/off.
-  getOpacity(nowSeconds, { peakOpacity = 1.0, troughOpacity = 0.3, hz = 12 } = {}) {
-    if (nowSeconds < this.invincibleUntil) {
-      if (nowSeconds >= (this.invincibilityFlashStart || 0)) {
-        // Smooth sine-based fade; 1.0 → 0.3 → 1.0 → 0.3 …
-        const t = (nowSeconds * hz * Math.PI * 2) % (Math.PI * 2);
-        const sine01 = (Math.sin(t) + 1) / 2; // 0..1
-        return troughOpacity + (peakOpacity - troughOpacity) * sine01;
-      }
+  getOpacity(
+    nowSeconds,
+    {
+      peakOpacity = 1,
+      troughOpacity = 0.3,
+      hz = 12,
+    } = {}
+  ) {
+    if (
+      nowSeconds < this.invincibleUntil &&
+      nowSeconds >= this.invincibilityFlashStart
+    ) {
+      const phase =
+        nowSeconds * hz * Math.PI * 2;
+
+      const sine01 =
+        (Math.sin(phase) + 1) / 2;
+
+      return (
+        troughOpacity +
+        (peakOpacity - troughOpacity) * sine01
+      );
     }
+
     return peakOpacity;
   }
+
+  // --------------------------------------------------
+  // RESET
+  // --------------------------------------------------
 
   reset(x, y) {
     this.x = x;
     this.y = y;
+
     this.velocityY = 0;
     this.rotation = 0;
-    this.wingPhase = 0;
+
     this.hp = MAX_HP;
+
     this.invincibleUntil = 0;
     this.invincibilityFlashStart = 0;
     this.flashVisible = true;
+
+    this.wingPhase = 0;
+    this.wingAnimating = false;
+    this.wingAnimationTime = 0;
+
+    this.hatHopProgress = 0;
+    this.legTime = 0;
   }
 
-  // Single damage gate: invincibility window is checked here, so every
-  // caller (PrsanManager today, anything new tomorrow) gets the same
-  // protection without having to wire an external predicate.
+  // --------------------------------------------------
+  // HEALTH
+  // --------------------------------------------------
+
   takeDamage(amount = 1) {
-    const now = performance.now() / 1000;
-    if (this.isInvincible(now)) return this.hp;
-    this.hp = Math.max(0, this.hp - Math.max(0, Number(amount) || 0));
+    const now =
+      performance.now() / 1000;
+
+    if (this.isInvincible(now)) {
+      return this.hp;
+    }
+
+    const damage =
+      Math.max(
+        0,
+        Number(amount) || 0
+      );
+
+    this.hp = Math.max(
+      0,
+      this.hp - damage
+    );
+
     return this.hp;
   }
 
@@ -100,200 +243,345 @@ export class Player {
     return this.hp <= 0;
   }
 
+  // --------------------------------------------------
+  // FLAP / TAP
+  // --------------------------------------------------
+
   flap() {
+    // Gameplay impulse.
     this.velocityY = -390;
+
+    // Old wing animation feel,
+    // but only triggered on tap.
     this.wingPhase = Math.PI;
+    this.wingAnimating = true;
+    this.wingAnimationTime = 0;
+
+    // Hat animation starts on the same tap.
+    this.hatHopProgress = 1;
   }
+
+  // --------------------------------------------------
+  // UPDATE
+  // --------------------------------------------------
 
   update(deltaTime) {
     const gravity = 1040;
-    this.velocityY += gravity * deltaTime;
-    this.velocityY = Math.min(this.velocityY, 570);
-    this.y += this.velocityY * deltaTime;
-    this.rotation = Math.max(-0.42, Math.min(0.72, this.velocityY / 650));
-    this.wingPhase += deltaTime * 12;
+
+    // ----------------------------------------------
+    // PHYSICS
+    // ----------------------------------------------
+
+    this.velocityY +=
+      gravity * deltaTime;
+
+    this.velocityY = Math.min(
+      this.velocityY,
+      570
+    );
+
+    this.y +=
+      this.velocityY * deltaTime;
+
+    this.rotation = Math.max(
+      -0.42,
+      Math.min(
+        0.72,
+        this.velocityY / 650
+      )
+    );
+
+    // ----------------------------------------------
+    // LEGS
+    // ----------------------------------------------
+
+    this.legTime += deltaTime;
+
+    // ----------------------------------------------
+    // WING
+    // ----------------------------------------------
+
+    if (this.wingAnimating) {
+      this.wingPhase +=
+        deltaTime * WING_PHASE_SPEED;
+
+      this.wingAnimationTime +=
+        deltaTime;
+
+      if (
+        this.wingAnimationTime >=
+        WING_ANIMATION_DURATION
+      ) {
+        this.wingAnimating = false;
+        this.wingAnimationTime = 0;
+      }
+    }
+
+    // ----------------------------------------------
+    // HAT
+    // ----------------------------------------------
+
+    if (this.hatHopProgress > 0) {
+      this.hatHopProgress = Math.max(
+        0,
+        this.hatHopProgress -
+          deltaTime / HAT_HOP_DURATION
+      );
+    }
   }
+
+  // --------------------------------------------------
+  // COLLISION
+  // --------------------------------------------------
 
   getBounds() {
     return {
-      // Shrunken hitbox — gives the player a forgiving feel. The visible
-      // sprite is 56x48 but the actual collision shape is ~36% narrower
-      // and ~33% shorter than that, so glancing brushes don't count as hits.
-      left: this.x - this.width * 0.32,
-      right: this.x + this.width * 0.32,
-      top: this.y - this.height * 0.30,
-      bottom: this.y + this.height * 0.30,
+      left:
+        this.x -
+        this.width * 0.32,
+
+      right:
+        this.x +
+        this.width * 0.32,
+
+      top:
+        this.y -
+        this.height * 0.30,
+
+      bottom:
+        this.y +
+        this.height * 0.30,
     };
   }
 
+  // --------------------------------------------------
+  // SVG PART RENDERING
+  // --------------------------------------------------
+
+  drawPart(
+    context,
+    partKey,
+    pivotX = 0,
+    pivotY = 0,
+    localRotation = 0
+  ) {
+    const part =
+      this.parts?.[partKey];
+
+    if (!part) {
+      return;
+    }
+
+    context.save();
+
+    if (localRotation !== 0) {
+      context.translate(
+        pivotX,
+        pivotY
+      );
+
+      context.rotate(
+        localRotation
+      );
+
+      context.translate(
+        -pivotX,
+        -pivotY
+      );
+    }
+
+    context.drawImage(
+      part,
+      0,
+      0,
+      BIRD_VIEW_W,
+      BIRD_VIEW_H
+    );
+
+    context.restore();
+  }
+
+  // --------------------------------------------------
+  // DRAW
+  // --------------------------------------------------
+
   draw(context) {
-    const flap = Math.sin(this.wingPhase);
-    const outline = "#3d4547";
+    if (!this.parts) {
+      return;
+    }
+
+    const now =
+      performance.now() / 1000;
+
+    const opacity =
+      this.getOpacity(now);
 
     context.save();
-    context.translate(this.x, this.y);
-    context.rotate(this.rotation);
-    context.lineJoin = "round";
-    context.lineCap = "round";
-    context.lineWidth = 1.8;
-    context.strokeStyle = outline;
 
-    // A short, three-feather tail sits behind the round body.
-    context.fillStyle = "#667375";
-    context.beginPath();
-    context.moveTo(-20, 8);
-    context.lineTo(-35, 3);
-    context.lineTo(-32, -2);
-    context.lineTo(-38, -9);
-    context.lineTo(-30, -8);
-    context.lineTo(-32, -15);
-    context.quadraticCurveTo(-20, -12, -15, 0);
-    context.closePath();
-    context.fill();
-    context.stroke();
+    // ==================================================
+    // WHOLE BIRD
+    // ==================================================
 
-    // Far wing: a small silhouette, animated independently of the body.
-    context.save();
-    context.translate(3, -7);
-    context.rotate(-0.35 + flap * 0.65);
-    context.fillStyle = "#758385";
-    context.beginPath();
-    context.moveTo(-8, 6);
-    context.quadraticCurveTo(-14, -16, -4, -24);
-    context.quadraticCurveTo(6, -19, 8, 3);
-    context.closePath();
-    context.fill();
-    context.stroke();
-    context.restore();
+    context.translate(
+      this.x,
+      this.y
+    );
 
-    // The head and belly share one chunky, slightly pear-shaped silhouette.
-    context.beginPath();
-    context.moveTo(-25, -4);
-    context.bezierCurveTo(-24, -19, -14, -25, 1, -24);
-    context.bezierCurveTo(18, -25, 27, -13, 27, 2);
-    context.bezierCurveTo(29, 18, 17, 26, 0, 25);
-    context.bezierCurveTo(-20, 26, -30, 15, -25, -4);
-    context.closePath();
-    context.fillStyle = "#a5afad";
-    context.fill();
+    context.rotate(
+      this.rotation
+    );
 
-    // Flat color blocks clipped to the body; no textures or gradients.
-    context.save();
-    context.clip();
-    context.fillStyle = "#899694";
-    context.beginPath();
-    context.moveTo(-28, 5);
-    context.quadraticCurveTo(-7, 31, 29, 5);
-    context.lineTo(32, 31);
-    context.lineTo(-30, 31);
-    context.closePath();
-    context.fill();
+    context.scale(
+      BIRD_SCALE,
+      BIRD_SCALE
+    );
 
-    context.fillStyle = "#557e78";
-    context.beginPath();
-    context.ellipse(13, 4, 16, 12, -0.25, 0, Math.PI * 2);
-    context.fill();
+    context.translate(
+      -BIRD_PIVOTS.birdCenter.x,
+      -BIRD_PIVOTS.birdCenter.y
+    );
 
-    context.fillStyle = "#e4decc";
-    context.beginPath();
-    context.ellipse(7, 16, 19, 13, -0.12, 0, Math.PI * 2);
-    context.fill();
-    context.restore();
-    // Trace the silhouette once more over the clipped color blocks.
-    context.beginPath();
-    context.moveTo(-25, -4);
-    context.bezierCurveTo(-24, -19, -14, -25, 1, -24);
-    context.bezierCurveTo(18, -25, 27, -13, 27, 2);
-    context.bezierCurveTo(29, 18, 17, 26, 0, 25);
-    context.bezierCurveTo(-20, 26, -30, 15, -25, -4);
-    context.closePath();
-    context.stroke();
+    context.globalAlpha =
+      opacity;
 
-    // Two little crown feathers make the silhouette readable at game size.
-    context.fillStyle = "#73817f";
-    context.beginPath();
-    context.moveTo(-8, -23);
-    context.quadraticCurveTo(-15, -28, -10, -31);
-    context.quadraticCurveTo(-4, -31, -1, -25);
-    context.quadraticCurveTo(0, -31, 5, -29);
-    context.quadraticCurveTo(9, -27, 6, -23);
-    context.fill();
-    context.stroke();
+    // ==================================================
+    // LEGS
+    // ==================================================
 
-    // Cream eyes and forward-looking pupils under heavy, annoyed brows.
-    context.fillStyle = "#faf3de";
-    context.beginPath();
-    context.ellipse(6, -9, 8, 8.5, -0.12, 0, Math.PI * 2);
-    context.fill();
-    context.stroke();
-    context.beginPath();
-    context.ellipse(20, -9, 6.5, 7.5, -0.12, 0, Math.PI * 2);
-    context.fill();
-    context.stroke();
+    const leftLegAngle =
+      Math.sin(
+        this.legTime *
+          LEG_HZ_LEFT *
+          Math.PI *
+          2
+      ) *
+      LEG_AMPLITUDE;
 
-    context.fillStyle = "#293538";
-    context.beginPath();
-    context.ellipse(9, -8, 2.6, 3.7, 0, 0, Math.PI * 2);
-    context.ellipse(22, -8, 2.3, 3.2, 0, 0, Math.PI * 2);
-    context.fill();
-    context.fillStyle = "#ffffff";
-    context.beginPath();
-    context.arc(9.7, -9.4, 0.85, 0, Math.PI * 2);
-    context.arc(22.6, -9.1, 0.75, 0, Math.PI * 2);
-    context.fill();
+    const rightLegAngle =
+      Math.sin(
+        this.legTime *
+          LEG_HZ_RIGHT *
+          Math.PI *
+          2 +
+          LEG_PHASE_OFFSET
+      ) *
+      LEG_AMPLITUDE;
 
-    context.strokeStyle = "#354143";
-    context.lineWidth = 4.5;
-    context.beginPath();
-    context.moveTo(-1, -19);
-    context.lineTo(12, -14);
-    context.moveTo(17, -14);
-    context.lineTo(26, -18);
-    context.stroke();
-    context.strokeStyle = outline;
-    context.lineWidth = 1.8;
+    this.drawPart(
+      context,
+      "leftLeg",
+      BIRD_PIVOTS.leftHip.x,
+      BIRD_PIVOTS.leftHip.y,
+      leftLegAngle
+    );
 
-    // A compact, two-tone beak projects in the direction of travel.
-    context.fillStyle = "#d99951";
-    context.beginPath();
-    context.moveTo(19, -2);
-    context.quadraticCurveTo(25, -7, 29, -4);
-    context.lineTo(37, 1);
-    context.lineTo(24, 4);
-    context.closePath();
-    context.fill();
-    context.stroke();
-    context.fillStyle = "#b97843";
-    context.beginPath();
-    context.moveTo(24, 4);
-    context.lineTo(34, 2);
-    context.quadraticCurveTo(30, 10, 24, 7);
-    context.closePath();
-    context.fill();
-    context.stroke();
+    this.drawPart(
+      context,
+      "rightLeg",
+      BIRD_PIVOTS.rightHip.x,
+      BIRD_PIVOTS.rightHip.y,
+      rightLegAngle
+    );
 
-    // Near wing pivots at the shoulder, with two simple feather marks.
-    context.save();
-    context.translate(-12, 2);
-    context.rotate(-0.15 + flap * 0.6);
-    context.fillStyle = "#748581";
-    context.beginPath();
-    context.moveTo(8, -3);
-    context.bezierCurveTo(-2, -12, -16, -9, -18, -1);
-    context.bezierCurveTo(-17, 9, -5, 15, 4, 11);
-    context.quadraticCurveTo(11, 7, 8, -3);
-    context.closePath();
-    context.fill();
-    context.stroke();
-    context.strokeStyle = "#526663";
-    context.lineWidth = 2;
-    context.beginPath();
-    context.moveTo(-13, 0);
-    context.quadraticCurveTo(-9, 5, -4, 6);
-    context.moveTo(-8, -3);
-    context.quadraticCurveTo(-4, 2, 1, 3);
-    context.stroke();
-    context.restore();
+    // ==================================================
+    // BODY
+    // ==================================================
+
+    this.drawPart(
+      context,
+      "body"
+    );
+
+    // ==================================================
+    // WING
+    // ==================================================
+
+    let wingAngle =
+      WING_BASE_ROTATION;
+
+    if (this.wingAnimating) {
+      const flap =
+        Math.sin(this.wingPhase);
+
+      wingAngle =
+        WING_BASE_ROTATION +
+        flap *
+          WING_FLAP_MULTIPLIER;
+    }
+
+    this.drawPart(
+      context,
+      "wing",
+      BIRD_PIVOTS.wing.x,
+      BIRD_PIVOTS.wing.y,
+      wingAngle
+    );
+
+    // ==================================================
+    // HAT
+    // ==================================================
+
+    if (this.parts.hat) {
+      const hatT =
+        1 - this.hatHopProgress;
+
+      const hatImpulse =
+        this.hatHopProgress > 0
+          ? Math.sin(hatT * Math.PI)
+          : 0;
+
+      const hopY =
+        -hatImpulse *
+        HAT_HOP_HEIGHT;
+
+      const hopScale =
+        1 +
+        hatImpulse *
+          HAT_HOP_SCALE;
+
+      const hopRotation =
+        hatImpulse *
+        HAT_HOP_ROTATION;
+
+      context.save();
+
+      context.translate(
+        BIRD_PIVOTS.birdCenter.x,
+        BIRD_PIVOTS.birdCenter.y
+      );
+
+      context.translate(
+        0,
+        hopY
+      );
+
+      context.rotate(
+        hopRotation
+      );
+
+      context.scale(
+        hopScale,
+        hopScale
+      );
+
+      context.translate(
+        -BIRD_PIVOTS.birdCenter.x,
+        -BIRD_PIVOTS.birdCenter.y
+      );
+
+      context.drawImage(
+        this.parts.hat,
+        0,
+        0,
+        BIRD_VIEW_W,
+        BIRD_VIEW_H
+      );
+
+      context.restore();
+    }
+
+    context.globalAlpha = 1;
+
     context.restore();
   }
 }
