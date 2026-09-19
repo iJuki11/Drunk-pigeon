@@ -484,41 +484,8 @@ export class Player {
     );
 
     // ==================================================
-    // BODY
-    // ==================================================
-
-    this.drawPart(
-      context,
-      "body"
-    );
-
-    // ==================================================
-    // WING
-    // ==================================================
-
-    let wingAngle =
-      WING_BASE_ROTATION;
-
-    if (this.wingAnimating) {
-      const flap =
-        Math.sin(this.wingPhase);
-
-      wingAngle =
-        WING_BASE_ROTATION +
-        flap *
-          WING_FLAP_MULTIPLIER;
-    }
-
-    this.drawPart(
-      context,
-      "wing",
-      BIRD_PIVOTS.wing.x,
-      BIRD_PIVOTS.wing.y,
-      wingAngle
-    );
-
-    // ==================================================
-    // HAT
+    // HAT (drawn above legs, below body — so the body
+    // silhouette occludes the hat where they overlap)
     // ==================================================
 
     if (this.parts.hat) {
@@ -579,6 +546,40 @@ export class Player {
 
       context.restore();
     }
+
+    // ==================================================
+    // BODY
+    // ==================================================
+
+    this.drawPart(
+      context,
+      "body"
+    );
+
+    // ==================================================
+    // WING (top layer — flap sweeps over body and hat)
+    // ==================================================
+
+    let wingAngle =
+      WING_BASE_ROTATION;
+
+    if (this.wingAnimating) {
+      const flap =
+        Math.sin(this.wingPhase);
+
+      wingAngle =
+        WING_BASE_ROTATION +
+        flap *
+          WING_FLAP_MULTIPLIER;
+    }
+
+    this.drawPart(
+      context,
+      "wing",
+      BIRD_PIVOTS.wing.x,
+      BIRD_PIVOTS.wing.y,
+      wingAngle
+    );
 
     context.globalAlpha = 1;
 
