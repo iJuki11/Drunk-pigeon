@@ -18,3 +18,7 @@ archive/
 # Sistemski fajlovi
 **/.DS_Store
 .opencode
+
+# Local-only debug HTML pages
+project/test_bird.html
+project/test_formation.html
