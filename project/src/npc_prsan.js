@@ -19,7 +19,7 @@ function loadHead() {
 }
 
 /** x/y is the pilot's neck position. Speeds are world pixels per second. */
-export class EnemyPrsanPadobran {
+export class NPCPrsan {
   constructor(x, y, { scale = 0.6, fallSpeed = 24, velocityX = 0 } = {}) {
     this.x = x;
     this.y = y;
@@ -221,4 +221,4 @@ export class EnemyPrsanPadobran {
   }
 }
 
-export default EnemyPrsanPadobran;
+export default NPCPrsan;
