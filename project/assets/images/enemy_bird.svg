@@ -2,6 +2,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="560" viewBox="0 0 640 560" fill="none">
   <title>Enemy bird — traced side-view reference</title>
   <desc>Vector reconstruction of the supplied side-view bird. Transparent background; no embedded raster. Neutral wings match the reference. Near shoulder 400,337. Far shoulder 410,330. Keep the six group IDs on export.</desc>
+  <!-- Outer wrapper so AssetLoader.loadSvgParts() can apply a single
+       outer transform to every part (same pattern as the player SVG).
+       Enemy parts already carry their own inner transforms, so this stays
+       a neutral identity wrapper. -->
+  <g>
   <g id="farWing" data-pivot-x="410" data-pivot-y="330" transform="matrix(.7 0 0 .7 15 8)" stroke="#202125" stroke-width="13" stroke-linecap="round" stroke-linejoin="round">
     <!-- The far wing is occluded in the reference pose; a separate full shape supports rotation. -->
     <path fill="#414348" d="M 594,444 C 575,443 555,429 541,413 C 519,387 502,339 481,301 C 465,271 437,258 397,244 C 357,205 304,144 239,91 C 215,70 202,77 206,108 C 209,145 238,183 260,205 C 221,190 186,169 155,160 C 125,149 127,175 143,204 C 163,239 194,261 219,274 C 184,267 155,264 147,278 C 133,307 209,351 259,362 C 226,367 203,375 214,395 C 230,422 279,436 316,429 C 294,444 292,454 309,466 C 334,486 392,485 424,473 C 393,490 399,514 419,511 C 461,507 499,483 527,463 C 501,502 461,528 407,539 C 443,561 493,555 539,530 C 572,512 590,480 594,444 Z"/>
@@ -34,5 +39,6 @@
     <path fill="#fbf0df" stroke-width="10" d="M 677,375 C 657,393 645,419 644,443 C 642,469 651,485 671,489 C 697,497 721,478 734,451 C 739,441 743,432 745,422 Z"/>
     <ellipse fill="#202125" stroke="none" cx="714" cy="443" rx="13" ry="16"/>
     <path fill="none" stroke-width="14" d="M 674,369 C 697,388 722,410 747,429"/>
+  </g>
   </g>
 </svg>
