@@ -146,4 +146,52 @@ export class AudioBus {
     this.airplaneElement.currentTime = 0;
     this.airplaneElement.volume = 0;
   }
+
+  // ---- Bird SFX -----------------------------------------------------------
+  // The crow uses the same looping-volume pattern as the airplane — a
+  // separate Audio element so airplane and bird can play simultaneously.
+  // updateBirdSound() ramps volume on a bell curve so the caw rises and
+  // falls as the bird crosses the screen. Same shape as the airplane, so
+  // both enemies read identically across the playfield.
+  startBird(src = "./assets/sounds/crow.mp3", maxVolume = 0.25) {
+    if (typeof window === "undefined") return;
+    if (!this.birdElement) {
+      this.birdElement = new Audio();
+      // Looping caw — bell-curve volume makes it feel alive, not flat.
+      this.birdElement.loop = true;
+      this.birdElement.preload = "auto";
+      this.birdElement.volume = 0;
+    }
+    if (this.birdElement.src !== new URL(src, window.location.href).href) {
+      this.birdElement.src = src;
+    }
+    this.birdMaxVolume = Math.max(0, Math.min(1, maxVolume));
+    const p = this.birdElement.play();
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  }
+
+  // volume from 0..1 — call every frame with the bird's x position; the
+  // helper maps distance-from-center to a bell-shaped gain curve. Same
+  // math as updateAirplaneSound so the bird and airplane both peak at
+  // d=0.4 and fall off at the edges.
+  updateBirdSound(birdX, playerX, canvasWidth) {
+    if (!this.birdElement) return;
+    const center = canvasWidth / 2;
+    // Normalised distance: 0 at center, 1 at far edge.
+    const distanceFromCenter = Math.min(1, Math.abs(birdX - center) / (canvasWidth / 2));
+    // Bell curve: loudest at distance 0.4 (bird mid-flight), quiet at edges.
+    // peak = 1 at d=0.4, falls off to 0 at d=0 and d=1.
+    const bell = 1 - Math.pow((distanceFromCenter - 0.4) / 0.6, 2);
+    const targetVolume = Math.max(0, Math.min(1, bell)) * this.birdMaxVolume;
+    // Smooth ramp to avoid clicks/pops.
+    const current = this.birdElement.volume;
+    this.birdElement.volume = current + (targetVolume - current) * 0.15;
+  }
+
+  stopBird() {
+    if (!this.birdElement) return;
+    this.birdElement.pause();
+    this.birdElement.currentTime = 0;
+    this.birdElement.volume = 0;
+  }
 }

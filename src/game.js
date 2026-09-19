@@ -2,7 +2,7 @@ import { Player } from "./player.js";
 import { CollectibleManager } from "./collectibles.js";
 import { AssetLoader } from "./assets.js";
 import { AudioBus } from "./audio.js";
-import { AirplaneManager } from "./enemies.js";
+import { AirplaneManager, BirdManager } from "./enemies.js";
 import { NPCManager } from "./npc_manager.js";
 import { CollisionEffects, COLLISION_EFFECT_DURATION } from "./collision_effects.js";
 import { SKIP_LAYER_IDS, ZOOM_BACKGROUND } from "./parallax-background.js";
@@ -108,6 +108,31 @@ export class Game {
       },
     });
     this.npcManager = new NPCManager();
+    // Crow enemy — same lifecycle as the airplane (single active instance,
+    // bell-curve SFX, AABB collision against the player) but rendered from
+    // enemy_bird.svg parts instead of a hand-drawn canvas. AssetLoader is
+    // passed in so parts can be fetched lazily on first spawn attempt.
+    this.birdManager = new BirdManager({
+      audio: this.audio,
+      player: this.player,
+      assets: this.assets,
+      // Called the moment a crow hit is accepted. Reuses the same
+      // collisionEffects + audio.playHit + invincibility window as the
+      // airplane so a hit feels identical regardless of which enemy
+      // triggered it.
+      onPlayerHit: (x, y, config) => {
+        const now = performance.now() / 1000;
+        const impactX = this.player.x + 22;
+        const impactY = this.player.y - 2;
+        this.collisionEffects.trigger(impactX, impactY, {
+          scale: (config?.scale ?? 0.19) * 11.6,
+          damage: config?.damage ?? 1,
+        });
+        this.audio.playHit();
+        this.player.grantInvincibility(now, 2, 0.15);
+        this.ui.update(this.snapshot());
+      },
+    });
 
     this.parallaxProject = null;
     this.parallaxImages = new Map();
@@ -164,6 +189,7 @@ export class Game {
     this.collisionEffects.clear();
     this.collectibles.reset();
     this.airplaneManager.reset();
+    this.birdManager.reset();
     this.npcManager.reset();
     // Reset in place rather than re-instantiating: managers (AirplaneManager)
     // already hold a reference to `player` from the constructor, and
@@ -294,6 +320,7 @@ export class Game {
     const groundY = this.getGroundY();
     this.collectibles.update(deltaTime, this.speed, this.width, this.height, groundY);
     this.airplaneManager.update(deltaTime, this.width, this.height, this.player);
+    this.birdManager.update(deltaTime, this.width, this.height, this.player);
     this.npcManager.update(deltaTime, this.width, this.height);
     this.collisionEffects.update(deltaTime);
     const collectedItems = this.collectibles.collect(this.player.getBounds());
@@ -491,6 +518,7 @@ export class Game {
 
     this.collectibles.draw(context);
     this.airplaneManager.draw(context);
+    this.birdManager.draw(context);
     this.npcManager.draw(context);
     // Render the player only on flash-visible frames while invincible; the
     // collision effects overlay sits between the enemy and the player so

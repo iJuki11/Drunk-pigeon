@@ -1,5 +1,5 @@
 const TAU = Math.PI * 2;
-const HEAD_URL = new URL('../assets/images/enemyBird_head.png', import.meta.url).href;
+const HEAD_URL = new URL('../assets/images/cvrka.png', import.meta.url).href;
 const INK = '#3d4547';
 let sharedHead;
 
@@ -196,9 +196,9 @@ ctx.strokeStyle = INK; ctx.lineWidth = 2.5;
 if (this.head) {
   // Keep the original transparent image and its aspect ratio intact.
   // Its neck overlaps the shirt and is covered by the cockpit rim below.
-  const headHeight = 105;
+  const headHeight = 95;
   const headWidth = headHeight * this.head.naturalWidth / this.head.naturalHeight;
-  ctx.drawImage(this.head, -15 - headWidth / 2, -98, headWidth, headHeight);
+  ctx.drawImage(this.head, -10 - headWidth / 2, -98, headWidth, headHeight);
 }
 
 // A projected spinning two-blade propeller; the shaft stays on the nose.
