@@ -170,14 +170,12 @@ export class NPCNidjoManager {
     spawnMargin = 120,
     minSpeed = 120,
     maxSpeed = 180,
-    despawnMargin = 80,
   } = {}) {
     this.minInterval = minInterval;
     this.maxInterval = maxInterval;
     this.spawnMargin = spawnMargin;
     this.minSpeed = minSpeed;
     this.maxSpeed = maxSpeed;
-    this.despawnMargin = despawnMargin;
 
     this.instances = [];
     this.scheduleNext();
@@ -195,7 +193,7 @@ export class NPCNidjoManager {
    * Returns the new instance so callers (tests, debug overlays) can grab it.
    */
   spawnOne(width, groundY) {
-    const scale = 0.6;
+    const scale = 0.55;
     // -1 or +1 with equal probability — alternating traffic both ways.
     const direction = Math.random() < 0.5 ? -1 : 1;
     const speed = this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed);
@@ -240,13 +238,17 @@ export class NPCNidjoManager {
     this.despawnIfOffscreen(width);
   }
 
-  /** Remove any instance whose chassis has crossed the opposite edge. */
+  /** Remove any instance whose full AABB has cleared the nearest edge.
+ * Uses car.getBounds() (which already reflects scale and direction) so
+ * the car despawns only after the entire vehicle has left the screen —
+ * no more half-drawn chassis hanging off the edge. */
   despawnIfOffscreen(width) {
     this.instances = this.instances.filter((car) => {
-      // direction-aware bounds: a car moving right is despawned once it
-      // crosses past the right edge, a car moving left past the left edge.
-      const pastLeft = car.x < -this.despawnMargin && car.direction < 0;
-      const pastRight = car.x > width + this.despawnMargin && car.direction > 0;
+      const b = car.getBounds();
+      // Car fully cleared the left edge: its rightmost pixel passed x=0.
+      const pastLeft = b.right < 0 && car.direction < 0;
+      // Car fully cleared the right edge: its leftmost pixel passed width.
+      const pastRight = b.left > width && car.direction > 0;
       return !(pastLeft || pastRight);
     });
   }
@@ -282,14 +284,12 @@ export class NPCToniManager {
     spawnMargin = 140,
     minSpeed = 90,
     maxSpeed = 150,
-    despawnMargin = 100,
   } = {}) {
     this.minInterval = minInterval;
     this.maxInterval = maxInterval;
     this.spawnMargin = spawnMargin;
     this.minSpeed = minSpeed;
     this.maxSpeed = maxSpeed;
-    this.despawnMargin = despawnMargin;
 
     this.instances = [];
     this.scheduleNext();
@@ -307,7 +307,7 @@ export class NPCToniManager {
    * Returns the new instance so callers (tests, debug overlays) can grab it.
    */
   spawnOne(width, groundY) {
-    const scale = 0.8;
+    const scale = 0.70;
     // -1 or +1 with equal probability — alternating traffic both ways.
     const direction = Math.random() < 0.5 ? -1 : 1;
     const speed = this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed);
@@ -352,13 +352,17 @@ export class NPCToniManager {
     this.despawnIfOffscreen(width);
   }
 
-  /** Remove any instance whose chassis has crossed the opposite edge. */
+  /** Remove any instance whose full AABB has cleared the nearest edge.
+ * Uses truck.getBounds() (which already reflects scale and direction) so
+ * the truck despawns only after the entire vehicle has left the screen —
+ * no more half-drawn cab hanging off the edge. */
   despawnIfOffscreen(width) {
     this.instances = this.instances.filter((truck) => {
-      // Direction-aware bounds: a truck moving right is despawned once it
-      // crosses past the right edge, a truck moving left past the left edge.
-      const pastLeft = truck.x < -this.despawnMargin && truck.direction < 0;
-      const pastRight = truck.x > width + this.despawnMargin && truck.direction > 0;
+      const b = truck.getBounds();
+      // Truck fully cleared the left edge: its rightmost pixel passed x=0.
+      const pastLeft = b.right < 0 && truck.direction < 0;
+      // Truck fully cleared the right edge: its leftmost pixel passed width.
+      const pastRight = b.left > width && truck.direction > 0;
       return !(pastLeft || pastRight);
     });
   }
