@@ -356,6 +356,112 @@ button {
   padding-bottom: max(2.1rem, calc(env(safe-area-inset-bottom) + 1.25rem));
 }
 
+/* Loading screen — shown while parallax PNGs and bird SVG are being fetched
+   and decoded. Same dark frame as other screens, but with breathing wings,
+   a determinate progress bar, and the percentage text updated every batch. */
+.screen-loading {
+  z-index: 20; /* above other screens so nothing else bleeds through */
+  justify-content: center;
+  padding-top: max(2rem, env(safe-area-inset-top));
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
+}
+
+/* Hide determinate elements until first progress callback fires. */
+.screen-loading .loading-progress,
+.screen-loading .loading-bar {
+  visibility: hidden;
+}
+.screen-loading.has-progress .loading-progress,
+.screen-loading.has-progress .loading-bar {
+  visibility: visible;
+}
+
+/* Keep the brand-mark alive — same .brand-mark from start screen, just with
+  a "breathing" opacity loop so it doesn't look frozen. */
+.screen-loading .brand-mark {
+  animation: loading-breath 1.4s ease-in-out infinite;
+  margin-bottom: 1.4rem;
+}
+
+@keyframes loading-breath {
+  0%, 100% { opacity: 0.6; transform: scale(0.97); }
+  50%      { opacity: 1.0; transform: scale(1.0); }
+}
+
+.loading-headline {
+  margin: 0;
+  color: var(--ink);
+  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-size: clamp(3.4rem, 18vw, 5.4rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 0.82;
+  text-shadow: 0 0.35rem 0 rgba(0, 0, 0, 0.15);
+  text-align: center;
+}
+
+.loading-progress {
+  margin: 1.2rem 0 0.55rem;
+  color: var(--gold);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
+.loading-bar {
+  width: min(100%, 18rem);
+  height: 0.42rem;
+  margin: 0 auto;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.loading-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold) 0%, #ffd76b 100%);
+  border-radius: 99px;
+  transition: width 180ms ease-out;
+}
+
+/* When the screen is fading out before being detached from the DOM tree,
+  give it a short transition so the user doesn't see a hard pop. */
+.screen-loading.is-leaving {
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 320ms ease;
+}
+
+/* Offline / fallback toast — used by Game when the parallax JSON failed to
+   load and we fell back to the procedural scene. Single instance lives
+   inside .game-shell, fades in for ~5 s, then fades out. */
+.offline-toast {
+  position: absolute;
+  z-index: 30;
+  bottom: max(1.2rem, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%) translateY(0.6rem);
+  padding: 0.7rem 1.1rem;
+  border: 1px solid rgba(245, 184, 46, 0.45);
+  border-radius: 0.7rem;
+  color: var(--ink);
+  background: rgba(31, 33, 35, 0.92);
+  box-shadow: 0 0.6rem 1.6rem rgba(0, 0, 0, 0.32);
+  font-size: 0.85rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease, transform 260ms ease;
+  white-space: nowrap;
+}
+.offline-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 .brand-mark {
   position: relative;
   display: flex;

@@ -26,11 +26,15 @@ const STATE = Object.freeze({
 const DEBUG_COLLIDERS = false;
 
 export class Game {
-  constructor(canvas, input, ui) {
+  constructor(canvas, input, ui, options = {}) {
     this.canvas = canvas;
     this.context = canvas.getContext("2d");
     this.input = input;
     this.ui = ui;
+    // options.onProgress(loaded, total) — fired by loadParallaxBackground()
+    // after every batch of CONCURRENCY=4 images. main.js forwards this to
+    // GameUI.updateProgress() so the loading screen shows real progress.
+    this.onProgress = typeof options.onProgress === "function" ? options.onProgress : null;
     this.state = STATE.START;
     this.width = 0;
     this.height = 0;
@@ -143,11 +147,23 @@ export class Game {
     this.parallaxProject = null;
     this.parallaxImages = new Map();
     this.parallaxSceneCache = null;
+    // True if the parallax load timed out or threw — main.js checks this
+    // so it can decide whether to show the offline toast.
+    this.parallaxLoadFailed = false;
     // Fire-and-forget: loadParallaxBackground kicks off the JSON+PNG decode
     // pipeline and updates this.parallaxProject once images are ready. The
     // first few frames still use the procedural fallback, so there's no
-    // startup hitch on the main thread.
-    this.loadParallaxBackground();
+    // startup hitch on the main thread. We capture the promise so callers
+    // that need the "all images decoded" signal (e.g. main.js for the
+    // loading screen) can await it via whenReady() — and so a failure
+    // here surfaces as an unhandled rejection that main.js can observe.
+    this.parallaxLoadPromise = this.loadParallaxBackground().catch((error) => {
+      this.parallaxLoadFailed = true;
+      // Swallow here so the rejection doesn't blow up the caller. main.js
+      // polls `game.parallaxLoadFailed` (via whenReady) to learn about the
+      // failure and decide whether to show the offline toast.
+      console.warn("[parallax] background load failed:", error);
+    });
 
     this.frame = this.frame.bind(this);
     this.resize = this.resize.bind(this);
@@ -157,7 +173,10 @@ export class Game {
     });
 
     this.resize();
-    this.ui.showStart();
+    // Don't call ui.showStart() here — main.js owns the loading→start
+    // handoff. Calling it now would race with the loading overlay and
+    // flash the start screen before parallax is ready. main.js calls
+    // ui.showStart() only after game.whenReady() resolves.
     // DEBUG ONLY: expose game for console inspection. Safe to leave in —
     // it does not affect gameplay and the only side effect is a single
     // property on window.
@@ -276,6 +295,18 @@ export class Game {
     const deltaTime = Math.min(frameTime / 1000, 0.1);
     this.lastTime = timestamp;
 
+    // While the loading overlay is on screen, skip BOTH update and draw.
+    // Without this guard the canvas would render the procedural fallback
+    // (squares / skyline silhouettes) under the loading brand-mark, which
+    // was explicitly ruled out by the Faza 10 spec. Once main.js hides the
+    // overlay (after whenReady resolves), the next frame runs the normal
+    // pipeline.
+    const loadingVisible = this.ui && this.ui.loadingScreen && !this.ui.loadingScreen.hidden;
+    if (loadingVisible) {
+      requestAnimationFrame(this.frame);
+      return;
+    }
+
     this.update(deltaTime);
     this.draw();
     requestAnimationFrame(this.frame);
@@ -379,6 +410,42 @@ export class Game {
   }
 
   async loadParallaxBackground() {
+    const onProgress = this.onProgress;
+    // Race the actual load against a hard 5 s deadline. If the parallax
+    // JSON or any image fails (offline, 404, hung connection) we want to
+    // give up rather than block the player behind a spinner forever. After
+    // the deadline the game continues with the procedural fallback and
+    // main.js hides the loading screen + shows an offline toast.
+    const PARALLAX_LOAD_TIMEOUT_MS = 5000;
+    const timeoutPromise = new Promise((resolve) => {
+      setTimeout(() => resolve({ timedOut: true }), PARALLAX_LOAD_TIMEOUT_MS);
+    });
+    const loadPromise = this._loadParallaxBackgroundImpl(onProgress);
+
+    const result = await Promise.race([
+      loadPromise.then((value) => ({ ok: true, value })),
+      timeoutPromise,
+    ]);
+    if (result && result.timedOut) {
+      // Force the load promise to reject so the failure path below can
+      // surface the offline toast. We can't cancel the underlying fetches
+      // without AbortController plumbing, but the Promise.race already gave
+      // us the timeout signal — what matters is that we report the failure
+      // to the UI now rather than later.
+      try {
+        await Promise.race([loadPromise, new Promise((r) => setTimeout(r, 250))]);
+      } catch (_) {
+        // The eventual rejection will be swallowed by the unhandled-rejection
+        // handler that the original implementation already logs in catch().
+      }
+      throw new Error(
+        `Parallax load exceeded ${PARALLAX_LOAD_TIMEOUT_MS} ms timeout`,
+      );
+    }
+    return result.value;
+  }
+
+  async _loadParallaxBackgroundImpl(onProgress) {
     try {
       const response = await fetch("./assets/backgrounds/background.parallax.json");
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -409,6 +476,11 @@ export class Game {
       // Decode in chunks of 4 at a time so we don't spike 34 simultaneous
       // decode jobs — that would jank the first paint hard on phones.
       const CONCURRENCY = 4;
+      // Fire the first progress signal up front so the loading screen can
+      // reveal its determinate widgets ("0 / 34 slika") even before any
+      // image finishes decoding. The percentage UI stays hidden via CSS
+      // until .has-progress is on the parent element.
+      onProgress?.(0, sortedAssets.length);
       for (let i = 0; i < sortedAssets.length; i += CONCURRENCY) {
         const batch = sortedAssets.slice(i, i + CONCURRENCY);
         await Promise.all(batch.map(async (asset) => {
@@ -418,6 +490,11 @@ export class Game {
           await image.decode();
           this.parallaxImages.set(asset.id, image);
         }));
+        // Report progress in terms of how many batches we *started*. If the
+        // last batch is shorter than CONCURRENCY we still clamp the upper
+        // bound to sortedAssets.length so the text never reads "36 / 34".
+        const done = Math.min(i + CONCURRENCY, sortedAssets.length);
+        onProgress?.(done, sortedAssets.length);
       }
       this.parallaxProject = project;
       // Pre-build the scene we hand to ParallaxRuntime every frame. Drops:
@@ -447,7 +524,51 @@ export class Game {
       this.cachedGroundY = this.computeGroundY();
     } catch (error) {
       console.warn("[parallax] failed to load:", error);
+      // Re-throw so loadParallaxBackground()'s caller (the Game constructor)
+      // can surface the failure to main.js, which then shows the offline
+      // toast. Without this re-throw, callers wouldn't know we fell back.
+      throw error;
     }
+  }
+
+  /**
+   * Resolves once every required asset has loaded — OR has definitively
+   * failed (timed out / threw). Used by main.js as the "loading screen can
+   * disappear" signal.
+   *
+   * Two checks both have to pass for a successful resolve:
+   *   1. this.parallaxProject !== null   — parallax JSON + decoded images
+   *   2. this.player.parts    !== null   — bird SVG parts (body, wing, hat, legs)
+   *
+   * If parallaxLoadFailed is true (set by the .catch in the constructor),
+   * we resolve anyway so the loading screen still goes away — the offline
+   * toast is then shown by main.js based on that flag.
+   *
+   * Polls on rAF rather than chaining Promises because the two readiness
+   * sources are independent and finish on different timelines; a Promise
+   * chain would force a single "all-done" promise up front and complicate
+   * the failure path. rAF gives us ~60 checks/sec which is plenty for a
+   * one-shot gate.
+   */
+  whenReady() {
+    return new Promise((resolve) => {
+      const check = () => {
+        const parallaxReady = this.parallaxProject !== null || this.parallaxLoadFailed;
+        const birdReady = this.player.parts !== null;
+        if (parallaxReady && birdReady) {
+          resolve();
+          return;
+        }
+        requestAnimationFrame(check);
+      };
+      check();
+    });
+  }
+
+  /** True if the parallax load failed (timed out or threw). main.js uses
+   *  this to decide whether to surface the "Učitavam offline scenu" toast. */
+  didParallaxFail() {
+    return this.parallaxLoadFailed;
   }
 
   draw() {
