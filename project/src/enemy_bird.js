@@ -70,10 +70,10 @@ const ENEMY_BIRD_PIVOTS = Object.freeze({
 // so the hitbox is fairer than the visual outline — same approach as the
 // airplane.
 const ENEMY_BIRD_HITBOX = Object.freeze({
-  left: -280,
-  right: 260,
-  top: -245,
-  bottom: 135,
+  left: -250,
+  right: 70,
+  top: -345,
+  bottom: -50,
 });
 
 // Burst on spawn — one-second sine²·sin(2·) sweep that adds extra wing
@@ -234,10 +234,10 @@ export class EnemyBird {
     // Same transform stack as Player.draw — translate to world pos, scale
     // by per-instance size (with direction flip), then shift the viewBox
     // origin to birdCenter so the sprite is centred on (this.x, this.y).
-    // body bob is already baked into pose.y so we don't apply it twice.
     ctx.translate(this.x, pose.y);
     ctx.rotate(this.rotation);
     ctx.scale(this.scale * this.direction, this.scale);
+    ctx.translate(0, pose.bob);
     ctx.translate(
       -ENEMY_BIRD_PIVOTS.birdCenter.x,
       -ENEMY_BIRD_PIVOTS.birdCenter.y,

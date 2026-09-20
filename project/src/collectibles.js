@@ -1,4 +1,8 @@
 const SIZE = 36;
+// Collision radius is item.size × this factor. Exported so debug
+// overlays (and any future feature that needs to know the same hitbox)
+// stay in lockstep with the collision test in CollectibleManager.collect().
+export const COLLECTIBLE_RADIUS_FACTOR = 0.28;
 export class CollectibleManager {
   // onCollect was removed — game.js reads the return value of collect() and
   // mutates game state itself, so the callback was unused. Add it back if a
@@ -13,7 +17,7 @@ export class CollectibleManager {
     for (const item of this.items) { item.x -= speed * dt; item.phase += dt * 4; }
     this.items = this.items.filter((item) => item.x > -SIZE && !item.collected);
   }
-  collect(bounds) { const out = []; for (const item of this.items) { const r = item.size * .38; const x = Math.max(bounds.left, Math.min(item.x, bounds.right)); const y = Math.max(bounds.top, Math.min(item.y, bounds.bottom)); if ((item.x-x)**2 + (item.y-y)**2 < r*r) { item.collected = true; out.push(item); } } return out; }
+  collect(bounds) { const out = []; for (const item of this.items) { const r = item.size * COLLECTIBLE_RADIUS_FACTOR; const x = Math.max(bounds.left, Math.min(item.x, bounds.right)); const y = Math.max(bounds.top, Math.min(item.y, bounds.bottom)); if ((item.x-x)**2 + (item.y-y)**2 < r*r) { item.collected = true; out.push(item); } } return out; }
   draw(ctx) { for (const item of this.items) { const bob = Math.sin(item.phase) * 4; const scale = 1 + Math.sin(item.phase * .7) * .035; if (item.type === "coffee") drawCoffee(ctx, item.x, item.y + bob, scale); else drawBeer(ctx, item.x, item.y + bob, scale); } }
 }
 

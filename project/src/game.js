@@ -1,5 +1,5 @@
 import { Player } from "./player.js";
-import { CollectibleManager } from "./collectibles.js";
+import { CollectibleManager, COLLECTIBLE_RADIUS_FACTOR } from "./collectibles.js";
 import { AssetLoader } from "./assets.js";
 import { AudioBus } from "./audio.js";
 import { AirplaneManager, BirdManager } from "./enemies.js";
@@ -18,6 +18,12 @@ const STATE = Object.freeze({
   PAUSED: "paused",
   GAME_OVER: "game-over",
 });
+
+// Debug overlay — set to false to hide every collider outline drawn by
+// Game.drawColliders(). To REMOVE the overlay entirely from production
+// code: delete this constant AND delete the call to drawColliders() in
+// frame() AND delete the drawColliders() method below.
+const DEBUG_COLLIDERS = false;
 
 export class Game {
   constructor(canvas, input, ui) {
@@ -530,7 +536,75 @@ export class Game {
     this.collisionEffects.draw(context);
     this.drawPopups(context);
     this.drawVignette(context);
+
+    // Debug collider overlay — rendered LAST so outlines sit on top of
+    // every sprite. Toggle the DEBUG_COLLIDERS flag at the top of the
+    // file to hide; remove the line below to delete this feature.
+    //if (DEBUG_COLLIDERS) {
+    //  this.drawColliders(context);
+    //}
   }
+
+  // Debug — draws a coloured outline around every active collider.
+  // To disable entirely: set DEBUG_COLLIDERS to false. To remove from
+  // source: delete this method AND the call above AND the constant.
+/*   drawColliders(ctx) {
+    ctx.save();
+    ctx.lineWidth = 2;
+
+    // Player — lime.
+    const pb = this.player?.getBounds?.();
+    if (pb) {
+      ctx.strokeStyle = "lime";
+      ctx.strokeRect(pb.left, pb.top, pb.right - pb.left, pb.bottom - pb.top);
+    }
+
+    // Bird formation — cyan, one outline per active bird so you can see
+    // overlap between birds in the same X column at a glance.
+    const birdEntries = this.birdManager?.instances ?? [];
+    ctx.strokeStyle = "cyan";
+    for (const entry of birdEntries) {
+      const b = entry.bird.getBounds();
+      ctx.strokeRect(b.left, b.top, b.right - b.left, b.bottom - b.top);
+    }
+
+    // Airplane — yellow.
+    const planeEntries = this.airplaneManager?.instances ?? [];
+    ctx.strokeStyle = "yellow";
+    for (const entry of planeEntries) {
+      const b = entry.enemy.getBounds();
+      ctx.strokeRect(b.left, b.top, b.right - b.left, b.bottom - b.top);
+    }
+
+    // Collectibles — orange. Items are plain objects ({x, y, size, …}),
+    // not classes with getBounds(). The circle below matches the
+    // collision radius used by CollectibleManager.collect() — that IS
+    // the real collider, not a visualisation of the sprite bounds.
+    ctx.strokeStyle = "orange";
+    const items = this.collectibles?.items ?? [];
+    if (Array.isArray(items)) {
+      for (const item of items) {
+        const r = item.size * COLLECTIBLE_RADIUS_FACTOR;
+        ctx.beginPath();
+        ctx.arc(item.x, item.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    // NPCs — magenta. Tries the manager's items list first, falls back
+    // to the manager itself if it exposes a single NPC.
+    const npcs = this.npcManager?.npcs ?? this.npcManager?.instances ?? [];
+    ctx.strokeStyle = "magenta";
+    if (Array.isArray(npcs)) {
+      for (const n of npcs) {
+        const b = n.getBounds?.();
+        if (!b) continue;
+        ctx.strokeRect(b.left, b.top, b.right - b.left, b.bottom - b.top);
+      }
+    }
+
+    ctx.restore();
+  } */
 
   drawSky(context) {
     context.fillStyle = this.cachedSkyGradient;
