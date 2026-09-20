@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pitaj me kaj sam strelil?</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      background: #111;
+      color: #f5f5f5;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      gap: 24px;
+      min-height: 100vh;
+    }
+
+    .portrait {
+      max-width: 420px;
+      width: 80vw;
+      height: auto;
+      display: block;
+    }
+
+    .headline {
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      font-weight: 600;
+      text-align: center;
+      letter-spacing: 0.3px;
+    }
+
+    .bird {
+      max-width: 260px;
+      width: 50vw;
+      height: auto;
+      display: block;
+    }
+
+    .soon {
+      font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+      font-weight: 500;
+      text-align: center;
+      opacity: 0.75;
+      letter-spacing: 2px;
+    }
+  </style>
+</head>
+<body>
+  <img class="portrait" src="assets/cvrka.png" alt="Čvrčko pilot" />
+  <h1 class="headline">Pitaj me kaj sam strelil?</h1>
+  <img class="bird" src="assets/bird_image.svg" alt="Bird" />
+  <p class="soon">soon....</p>
+</body>
+</html>
