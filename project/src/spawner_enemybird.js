@@ -23,7 +23,7 @@ export const BIRD_RECIPES = Object.freeze({
 // never overlap; the leftover space (height - 7 * slotHeight) becomes
 // extra margin on top and bottom. This is simpler than computing slots
 // from screen height and guarantees the same formation shape everywhere.
-const GRID_SLOTS_Y = 7;
+const GRID_SLOTS_Y = 6;
 // Bird visible footprint (scale 0.19 × 560 viewBox height ≈ 106 px). Use
 // a slightly tighter value (80 px) so slots look visually spaced; the
 // hitbox is even smaller (0.7× shrink) so collision-wise there's slack.
@@ -43,6 +43,20 @@ const X_OFFSET_CHOICES = Object.freeze([0, -1]);
 // off-screen than the lead. 0.5 / 1 / 1.5 half-step the bird width so
 // a 4-bird formation reads as a single block, not a stretched line.
 const X_OFFSETS_4_PLUS = Object.freeze([-0.5, -1, -1.5]);
+// Compute the minimum spawn margin (px past the right edge) so the
+// leftmost bird in any formation lands fully off-screen, regardless
+// of viewport width. The most-negative entry across both pools is
+// used (today -1.5); `SPAWN_MARGIN_SAFETY_BUFFER` adds a full bird
+// width of headroom so a bird never appears flush against the edge.
+// This is the single place to update if either pool grows.
+const MAX_X_OFFSET_DISTANCE = Math.max(
+  ...X_OFFSET_CHOICES.map((v) => Math.abs(v)),
+  ...X_OFFSETS_4_PLUS.map((v) => Math.abs(v)),
+);
+const SPAWN_MARGIN_SAFETY_BUFFER = BIRD_VISIBLE_WIDTH; // 120 px headroom
+function computeSpawnMargin() {
+  return MAX_X_OFFSET_DISTANCE * BIRD_VISIBLE_WIDTH + SPAWN_MARGIN_SAFETY_BUFFER;
+}
 // Max gap between two consecutive birds on the Y grid, in slot units.
 // A pair must satisfy |slot_i - slot_(i+1)| ≤ this. With 7 slots and
 // maxGap=2, three birds can spread across slot 0..4 (worst case) but
@@ -237,7 +251,7 @@ export class BirdManager {
       const xOffsetUnits = xOffsets[i];
       const xOffset = xOffsetUnits * BIRD_VISIBLE_WIDTH;
       const y = this.slotY(slotIndex, height);
-      const bird = new EnemyBird(width + config.spawnMargin + xOffset, y, {
+      const bird = new EnemyBird(width + computeSpawnMargin() + xOffset, y, {
         scale: config.scale,
         direction: -1,
         velocityX: -speed,
