@@ -289,7 +289,7 @@ export class BirdManager {
     // One caw per formation, not per bird — the spawn is one event.
     // Bell-curve update later in update() ramps volume based on the lead
     // bird's x.
-    this.audio?.startBird?.("./assets/sounds/crow.mp3");
+    this.audio?.startBird?.("bird");
     // eslint-disable-next-line no-console
     console.log("[bird] formation spawned", {
       size: formationSize,

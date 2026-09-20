@@ -1,3 +1,16 @@
+import { audioConfig } from "./audioConfig.js";
+
+// AudioBus is the single owner of every audio resource in the game:
+//   * One AudioContext + master GainNode for procedural SFX
+//     (oscillator/noise — beer, coffee, hit, game-over jingle).
+//   * Dedicated HTMLAudioElement instances for long-form looping
+//     tracks (background music, airplane drone, bird caw) — HTML5
+//     audio is required because Web Audio can't loop MP3 files.
+//   * One-shot SFX (jump) use a fresh Audio element per playback so
+//     rapid taps stack instead of cutting each other off.
+//
+// All volume / src defaults live in audioConfig.js — AudioBus is
+// the execution layer, audioConfig is the data layer.
 export class AudioBus {
   constructor() {
     this.context = null;
@@ -7,6 +20,14 @@ export class AudioBus {
     // Browser policy guard: audio is unlocked only by a real user gesture.
     window.addEventListener("keydown", this.onUserInput, { once: true, passive: true });
     window.addEventListener("pointerdown", this.onUserInput, { once: true, passive: true });
+
+    // Config snapshot — read once at construction so per-method lookups
+    // don't re-read the module export every frame.
+    this.config = audioConfig;
+
+    // One-shot SFX pool — we keep the most recent element around so we
+    // don't allocate an Audio object on every single tap.
+    this.jumpElement = null;
   }
 
   onUserInput() {
@@ -20,7 +41,7 @@ export class AudioBus {
       const Context = window.AudioContext || window.webkitAudioContext;
       this.context = new Context();
       this.master = this.context.createGain();
-      this.master.gain.value = 0.22;
+      this.master.gain.value = this.config.master;
       this.master.connect(this.context.destination);
     }
     if (this.context.state === "suspended") this.context.resume().catch(() => {});
@@ -59,33 +80,84 @@ export class AudioBus {
     source.start();
   }
 
-  playBeer() { this.tone(440, 0.08, "square", 660, 0.16); }
-  playCoffee() { this.tone(330, 0.08, "square", 250, 0.16); }
-  playHit() { this.tone(90, 0.15, "triangle", 45, 0.2); }
-  playGameOver() {
-    [440, 350, 260, 180].forEach((frequency, index) => {
-      window.setTimeout(() => this.tone(frequency, 0.14, "square", frequency * 0.8, 0.12), index * 140);
+  // ---- Procedural one-shots (config-driven) -------------------
+  // Each one reads its parameters from audioConfig.sfx.* so balance
+  // changes live in one file. Pass overrides for rare cases (e.g.
+  // a louder hit during a boss attack).
+  playBeer(overrides = {}) {
+    const cfg = { ...this.config.sfx.beer, ...overrides };
+    this.tone(cfg.frequency, cfg.duration, "square", cfg.endFrequency, cfg.volume);
+  }
+
+  playCoffee(overrides = {}) {
+    const cfg = { ...this.config.sfx.coffee, ...overrides };
+    this.tone(cfg.frequency, cfg.duration, "square", cfg.endFrequency, cfg.volume);
+  }
+
+  playHit(overrides = {}) {
+    const cfg = { ...this.config.sfx.hit, ...overrides };
+    this.tone(cfg.frequency, cfg.duration, "triangle", cfg.endFrequency, cfg.volume);
+  }
+
+  playGameOver(overrides = {}) {
+    const cfg = { ...this.config.sfx.gameOver, ...overrides };
+    cfg.notes.forEach((frequency, index) => {
+      window.setTimeout(
+        () => this.tone(frequency, cfg.stepDuration, "square", frequency * 0.8, cfg.volume),
+        index * (cfg.stepGap * 1000)
+      );
     });
   }
-  // ---- Background music ---------------------------------------------------
-  // Long-form music tracks need a real <audio> element because Web Audio
-  // oscillators can't loop MP3s. We route the element through a separate
-  // gain so the SFX master stays at its own volume.
-  playMusic(src = "./assets/sounds/gogomuck.mp3", volume = 0.3) {
+
+  // ---- One-shot MP3 SFX (jump) ---------------------------------
+  // Every flap/tap creates a fresh Audio element so rapid taps stack
+  // instead of restarting the same sample. We deliberately don't reuse
+  // a single element — overlapping playback is the whole point.
+  //
+  // volume: optional override on top of audioConfig.sfx.jump.volume.
+  playJump(overrides = {}) {
     if (typeof window === "undefined") return;
+    const cfg = { ...this.config.sfx.jump, ...overrides };
+    const element = new Audio();
+    element.src = cfg.src;
+    element.preload = "auto";
+    element.volume = Math.max(0, Math.min(1, cfg.volume));
+    // No .loop — one shot per tap, as specified.
+    // The browser will GC the element after playback finishes; no
+    // need to track references manually.
+    const playPromise = element.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      // Browser may block playback before the first user gesture —
+      // swallow the rejection silently. Subsequent taps will retry.
+      playPromise.catch(() => {});
+    }
+  }
+
+  // ---- Background music (long-form, looping) -------------------
+  // Routing an HTMLAudioElement through a dedicated volume is the only
+  // way to loop MP3 in browsers — Web Audio oscillators can't do it.
+  playMusic(key = "background", volumeOverride) {
+    if (typeof window === "undefined") return;
+    const cfg = this.config.music[key];
+    if (!cfg) {
+      console.warn(`[AudioBus] playMusic: unknown key "${key}"`);
+      return;
+    }
+    const volume = volumeOverride !== undefined ? volumeOverride : cfg.volume;
+    if (volume < 0 || volume > 1) {
+      console.warn(`[AudioBus] playMusic: volume ${volume} for "${key}" is out of range [0,1] — will be clamped`);
+    }
     if (!this.musicElement) {
       this.musicElement = new Audio();
-      this.musicElement.loop = true;
+      this.musicElement.loop = cfg.loop !== false;
       this.musicElement.preload = "auto";
-      this.musicElement.volume = Math.max(0, Math.min(1, volume));
-    } else if (this.musicElement.src !== new URL(src, window.location.href).href) {
-      this.musicElement.src = src;
-    } else {
-      this.musicElement.volume = Math.max(0, Math.min(1, volume));
     }
-    this.musicElement.src = src;
-    // Browser policy: playback may fail without a user gesture; ignore the
-    // rejection — the next interaction will trigger this again.
+    // Only swap src if it actually changed — re-assigning the same src
+    // resets currentTime and creates a hiccup.
+    if (this.musicElement.src !== new URL(cfg.src, window.location.href).href) {
+      this.musicElement.src = cfg.src;
+    }
+    this.musicElement.volume = Math.max(0, Math.min(1, volume));
     const playPromise = this.musicElement.play();
     if (playPromise && typeof playPromise.catch === "function") {
       playPromise.catch(() => {});
@@ -103,23 +175,28 @@ export class AudioBus {
     this.musicElement.volume = Math.max(0, Math.min(1, volume));
   }
 
-  // ---- Airplane SFX -------------------------------------------------------
-  // The prsan airplane uses a looping airplane.mp3 whose volume ramps based
-  // on the player's horizontal distance to the enemy: loud when close,
-  // quiet when the plane is at the screen edge, silent off-screen. Call
-  // updateAirplaneSound(x) every frame while an instance is alive.
-  startAirplane(src = "./assets/sounds/airplane.mp3", maxVolume = 0.25) {
+  // ---- Airplane SFX (positional loop) --------------------------
+  // The prsan airplane uses a looping airplane.mp3 whose volume ramps
+  // based on the player's horizontal distance to the enemy: loud when
+  // close, quiet when the plane is at the screen edge, silent off-screen.
+  // Call updateAirplaneSound(x) every frame while an instance is alive.
+  startAirplane(key = "airplane") {
     if (typeof window === "undefined") return;
+    const cfg = this.config.ambient[key];
+    if (!cfg) {
+      console.warn(`[AudioBus] startAirplane: unknown key "${key}"`);
+      return;
+    }
     if (!this.airplaneElement) {
       this.airplaneElement = new Audio();
-      this.airplaneElement.loop = true;
+      this.airplaneElement.loop = cfg.loop !== false;
       this.airplaneElement.preload = "auto";
       this.airplaneElement.volume = 0;
     }
-    if (this.airplaneElement.src !== new URL(src, window.location.href).href) {
-      this.airplaneElement.src = src;
+    if (this.airplaneElement.src !== new URL(cfg.src, window.location.href).href) {
+      this.airplaneElement.src = cfg.src;
     }
-    this.airplaneMaxVolume = Math.max(0, Math.min(1, maxVolume));
+    this.airplaneMaxVolume = Math.max(0, Math.min(1, cfg.maxVolume));
     const p = this.airplaneElement.play();
     if (p && typeof p.catch === "function") p.catch(() => {});
   }
@@ -129,10 +206,8 @@ export class AudioBus {
   updateAirplaneSound(planeX, playerX, canvasWidth) {
     if (!this.airplaneElement) return;
     const center = canvasWidth / 2;
-    // Normalised distance: 0 at center, 1 at far edge.
     const distanceFromCenter = Math.min(1, Math.abs(planeX - center) / (canvasWidth / 2));
     // Bell curve: loudest at distance 0.4 (plane mid-flight), quiet at edges.
-    // peak = 1 at d=0.4, falls off to 0 at d=0 and d=1.
     const bell = 1 - Math.pow((distanceFromCenter - 0.4) / 0.6, 2);
     const targetVolume = Math.max(0, Math.min(1, bell)) * this.airplaneMaxVolume;
     // Smooth ramp to avoid clicks/pops.
@@ -147,43 +222,37 @@ export class AudioBus {
     this.airplaneElement.volume = 0;
   }
 
-  // ---- Bird SFX -----------------------------------------------------------
+  // ---- Bird SFX (positional loop) ------------------------------
   // The crow uses the same looping-volume pattern as the airplane — a
   // separate Audio element so airplane and bird can play simultaneously.
-  // updateBirdSound() ramps volume on a bell curve so the caw rises and
-  // falls as the bird crosses the screen. Same shape as the airplane, so
-  // both enemies read identically across the playfield.
-  startBird(src = "./assets/sounds/crow.mp3", maxVolume = 0.25) {
+  startBird(key = "bird") {
     if (typeof window === "undefined") return;
+    const cfg = this.config.ambient[key];
+    if (!cfg) {
+      console.warn(`[AudioBus] startBird: unknown key "${key}"`);
+      return;
+    }
     if (!this.birdElement) {
       this.birdElement = new Audio();
-      // Looping caw — bell-curve volume makes it feel alive, not flat.
-      this.birdElement.loop = true;
+      this.birdElement.loop = cfg.loop !== false;
       this.birdElement.preload = "auto";
       this.birdElement.volume = 0;
     }
-    if (this.birdElement.src !== new URL(src, window.location.href).href) {
-      this.birdElement.src = src;
+    if (this.birdElement.src !== new URL(cfg.src, window.location.href).href) {
+      this.birdElement.src = cfg.src;
     }
-    this.birdMaxVolume = Math.max(0, Math.min(1, maxVolume));
+    this.birdMaxVolume = Math.max(0, Math.min(1, cfg.maxVolume));
     const p = this.birdElement.play();
     if (p && typeof p.catch === "function") p.catch(() => {});
   }
 
-  // volume from 0..1 — call every frame with the bird's x position; the
-  // helper maps distance-from-center to a bell-shaped gain curve. Same
-  // math as updateAirplaneSound so the bird and airplane both peak at
-  // d=0.4 and fall off at the edges.
   updateBirdSound(birdX, playerX, canvasWidth) {
     if (!this.birdElement) return;
     const center = canvasWidth / 2;
-    // Normalised distance: 0 at center, 1 at far edge.
     const distanceFromCenter = Math.min(1, Math.abs(birdX - center) / (canvasWidth / 2));
     // Bell curve: loudest at distance 0.4 (bird mid-flight), quiet at edges.
-    // peak = 1 at d=0.4, falls off to 0 at d=0 and d=1.
     const bell = 1 - Math.pow((distanceFromCenter - 0.4) / 0.6, 2);
     const targetVolume = Math.max(0, Math.min(1, bell)) * this.birdMaxVolume;
-    // Smooth ramp to avoid clicks/pops.
     const current = this.birdElement.volume;
     this.birdElement.volume = current + (targetVolume - current) * 0.15;
   }

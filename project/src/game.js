@@ -2,6 +2,7 @@ import { Player } from "./player.js";
 import { CollectibleManager, COLLECTIBLE_RADIUS_FACTOR } from "./collectibles.js";
 import { AssetLoader } from "./assets.js";
 import { AudioBus } from "./audio.js";
+import { audioConfig } from "./audioConfig.js";
 import { AirplaneManager, BirdManager } from "./enemies.js";
 import { DIFFICULTY, getLevel, getLevelConfig } from "./difficulty_system.js";
 import { NPCManager } from "./npc_manager.js";
@@ -299,7 +300,8 @@ export class Game {
     this.ui.update(this.snapshot());
     this.ui.showPlaying();
     // Kick off background music (loops until stopMusic is called).
-    this.audio.playMusic("./assets/sounds/gogomuck.mp3", 0.05);
+    // Volume comes from audioConfig.music.background — single source of truth.
+    this.audio.playMusic("background", audioConfig.music.background.volume);
     this.lastTime = performance.now();
   }
 
@@ -326,7 +328,7 @@ export class Game {
     if (this.state !== STATE.PAUSED) return;
     this.state = STATE.PLAYING;
     this.lastTime = performance.now();
-    this.audio.playMusic("./assets/sounds/gogomuck.mp3", 0.05);
+    this.audio?.playMusic?.("background", audioConfig.music.background.volume);
     this.ui.hidePaused();
   }
 
@@ -438,7 +440,10 @@ export class Game {
 
     this.worldX += this.speed * deltaTime;
 
-    if (this.input.consumeFlap()) { this.player.flap(); }
+    if (this.input.consumeFlap()) {
+      this.player.flap();
+      this.audio.playJump();
+    }
 
     this.player.update(deltaTime);
     // Speed still ramps with distance — distance is no longer shown in the

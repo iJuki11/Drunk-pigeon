@@ -115,7 +115,7 @@ export class AirplaneManager {
     });
     // Kick off the looping airplane SFX — volume is updated every frame in
     // update() based on distance from the centre of the screen.
-    this.audio?.startAirplane?.("./assets/sounds/airplane.mp3", 0.25);
+    this.audio?.startAirplane?.("airplane");
     // eslint-disable-next-line no-console
     console.log("[prsan] spawned", { x: enemy.x, y, recipe: key, speed: speed.toFixed(0) });
   }
