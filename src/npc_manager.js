@@ -12,6 +12,8 @@
 //   - timers and randomness stay inside the sub-manager, not in the parent
 
 import { NPCPrsan } from "./npc_prsan.js";
+import { NPCNidjo } from "./npc_nidjo.js";
+import { NPCToni } from "./npc_toni.js";
 
 /**
  * Sub-manager for the "prsan" paratrooper NPC.
@@ -149,6 +151,234 @@ export class NPCPrsanManager {
 }
 
 /**
+ * Sub-manager for the "nidjo" car NPC — drives across the ground from one
+ * side of the screen to the other, then despawns. At most one active
+ * instance at a time (keeps the road from looking like a motorway).
+ *
+ * Owns its own spawn timer. The outer NPCManager just delegates
+ * update/draw/reset here. Direction (+1/-1) is randomised on every spawn
+ * so traffic alternates naturally; speed is randomised in [minSpeed, maxSpeed].
+ *
+ * y is passed in from game.js via the groundY argument of update() and is
+ * resolved to the chassis origin by subtracting the visible axle offset
+ * (WHEEL_RADIUS * scale, matching NPCNidjo's coordinate convention).
+ */
+export class NPCNidjoManager {
+  constructor({
+    minInterval = 8,
+    maxInterval = 18,
+    spawnMargin = 120,
+    minSpeed = 120,
+    maxSpeed = 180,
+    despawnMargin = 80,
+  } = {}) {
+    this.minInterval = minInterval;
+    this.maxInterval = maxInterval;
+    this.spawnMargin = spawnMargin;
+    this.minSpeed = minSpeed;
+    this.maxSpeed = maxSpeed;
+    this.despawnMargin = despawnMargin;
+
+    this.instances = [];
+    this.scheduleNext();
+  }
+
+  /** Roll a random duration until the next spawn attempt. */
+  scheduleNext() {
+    const span = Math.max(0, this.maxInterval - this.minInterval);
+    this.nextSpawn = this.minInterval + Math.random() * span;
+  }
+
+  /**
+   * Create one nidjo instance: randomised direction (left or right), random
+   * forward speed in [minSpeed, maxSpeed], driving across the ground line.
+   * Returns the new instance so callers (tests, debug overlays) can grab it.
+   */
+  spawnOne(width, groundY) {
+    const scale = 0.6;
+    // -1 or +1 with equal probability — alternating traffic both ways.
+    const direction = Math.random() < 0.5 ? -1 : 1;
+    const speed = this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed);
+    // Spawn just off the appropriate edge with a small margin so the car
+    // doesn't pop into existence fully on-screen.
+    const x = direction > 0
+      ? -this.spawnMargin
+      : width + this.spawnMargin;
+    // Chassis origin sits WHEEL_RADIUS (=31 in NPCNidjo) above the ground.
+    const y = groundY + 75 * scale;
+
+    const car = new NPCNidjo(x, y, {
+      scale,
+      direction,
+      velocityX: direction * speed,
+      wheelSpeed: speed,
+    });
+    this.instances.push(car);
+    return car;
+  }
+
+  /** Tick timers and walk every active instance forward by deltaTime. */
+  update(deltaTime, width, height, groundY) {
+    if (!Number.isFinite(deltaTime) || deltaTime <= 0) return;
+
+    this.timer = (this.timer || 0) + deltaTime;
+
+    // Spawn gate: at most one nidjo on screen. If ground isn't known yet
+    // (e.g. before resize has fired) we just skip the spawn — the timer
+    // rolls over to the next frame.
+    const haveGround = Number.isFinite(groundY) && groundY > 0;
+    if (this.instances.length === 0 && haveGround && this.timer >= this.nextSpawn) {
+      this.timer = 0;
+      this.scheduleNext();
+      this.spawnOne(width, groundY);
+    }
+
+    // Step every instance, then drop any that have driven off either edge.
+    for (const car of this.instances) {
+      car.update(deltaTime);
+    }
+    this.despawnIfOffscreen(width);
+  }
+
+  /** Remove any instance whose chassis has crossed the opposite edge. */
+  despawnIfOffscreen(width) {
+    this.instances = this.instances.filter((car) => {
+      // direction-aware bounds: a car moving right is despawned once it
+      // crosses past the right edge, a car moving left past the left edge.
+      const pastLeft = car.x < -this.despawnMargin && car.direction < 0;
+      const pastRight = car.x > width + this.despawnMargin && car.direction > 0;
+      return !(pastLeft || pastRight);
+    });
+  }
+
+  /** Render every active instance via its own draw method. */
+  draw(context) {
+    for (const car of this.instances) {
+      car.draw(context);
+    }
+  }
+
+  /** Wipe all instances and reset timers — called on game restart. */
+  reset() {
+    this.instances = [];
+    this.timer = 0;
+    this.scheduleNext();
+  }
+}
+
+/**
+ * Sub-manager for the "toni" truck NPC — drives across the screen from one
+ * edge to the other, then despawns. Slower and chunkier than Nidjo's car.
+ *
+ * Spawn gating: at most one toni on screen. Direction (+1/-1) is randomised
+ * on every spawn; speed is randomised in [minSpeed, maxSpeed]. y is anchored
+ * to groundY + 90 * scale so the truck rides above the ground line (the
+ * offset is positive, unlike Nidjo's `groundY - 31 * scale`).
+ */
+export class NPCToniManager {
+  constructor({
+    minInterval = 10,
+    maxInterval = 22,
+    spawnMargin = 140,
+    minSpeed = 90,
+    maxSpeed = 150,
+    despawnMargin = 100,
+  } = {}) {
+    this.minInterval = minInterval;
+    this.maxInterval = maxInterval;
+    this.spawnMargin = spawnMargin;
+    this.minSpeed = minSpeed;
+    this.maxSpeed = maxSpeed;
+    this.despawnMargin = despawnMargin;
+
+    this.instances = [];
+    this.scheduleNext();
+  }
+
+  /** Roll a random duration until the next spawn attempt. */
+  scheduleNext() {
+    const span = Math.max(0, this.maxInterval - this.minInterval);
+    this.nextSpawn = this.minInterval + Math.random() * span;
+  }
+
+  /**
+   * Create one toni instance: randomised direction (left or right), random
+   * forward speed in [minSpeed, maxSpeed], driving across the ground line.
+   * Returns the new instance so callers (tests, debug overlays) can grab it.
+   */
+  spawnOne(width, groundY) {
+    const scale = 0.8;
+    // -1 or +1 with equal probability — alternating traffic both ways.
+    const direction = Math.random() < 0.5 ? -1 : 1;
+    const speed = this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed);
+    // Spawn just off the appropriate edge with a small margin so the truck
+    // doesn't pop into existence fully on-screen.
+    const x = direction > 0
+      ? -this.spawnMargin
+      : width + this.spawnMargin;
+    // Toni rides 90 * scale above the ground line (positive offset).
+    const y = groundY + 90 * scale;
+
+    const truck = new NPCToni(x, y, {
+      scale,
+      direction,
+      velocityX: direction * speed,
+      wheelSpeed: speed,
+    });
+    this.instances.push(truck);
+    return truck;
+  }
+
+  /** Tick timers and walk every active instance forward by deltaTime. */
+  update(deltaTime, width, height, groundY) {
+    if (!Number.isFinite(deltaTime) || deltaTime <= 0) return;
+
+    this.timer = (this.timer || 0) + deltaTime;
+
+    // Spawn gate: at most one toni on screen. If ground isn't known yet
+    // (e.g. before resize has fired) we just skip the spawn — the timer
+    // rolls over to the next frame.
+    const haveGround = Number.isFinite(groundY) && groundY > 0;
+    if (this.instances.length === 0 && haveGround && this.timer >= this.nextSpawn) {
+      this.timer = 0;
+      this.scheduleNext();
+      this.spawnOne(width, groundY);
+    }
+
+    // Step every instance, then drop any that have driven off either edge.
+    for (const truck of this.instances) {
+      truck.update(deltaTime);
+    }
+    this.despawnIfOffscreen(width);
+  }
+
+  /** Remove any instance whose chassis has crossed the opposite edge. */
+  despawnIfOffscreen(width) {
+    this.instances = this.instances.filter((truck) => {
+      // Direction-aware bounds: a truck moving right is despawned once it
+      // crosses past the right edge, a truck moving left past the left edge.
+      const pastLeft = truck.x < -this.despawnMargin && truck.direction < 0;
+      const pastRight = truck.x > width + this.despawnMargin && truck.direction > 0;
+      return !(pastLeft || pastRight);
+    });
+  }
+
+  /** Render every active instance via its own draw method. */
+  draw(context) {
+    for (const truck of this.instances) {
+      truck.draw(context);
+    }
+  }
+
+  /** Wipe all instances and reset timers — called on game restart. */
+  reset() {
+    this.instances = [];
+    this.timer = 0;
+    this.scheduleNext();
+  }
+}
+
+/**
  * NPCManager — top-level facade for every NPC type in the game.
  *
  * Currently owns a single sub-manager (prsan). New sub-managers can be
@@ -159,17 +389,25 @@ export class NPCPrsanManager {
 export class NPCManager {
   constructor() {
     this.Prsan = new NPCPrsanManager();
+    this.Nidjo = new NPCNidjoManager();
+    this.Toni = new NPCToniManager();
   }
 
-  update(deltaTime, width, height) {
+  update(deltaTime, width, height, groundY) {
     this.Prsan.update(deltaTime, width, height);
+    this.Nidjo.update(deltaTime, width, height, groundY);
+    this.Toni.update(deltaTime, width, height, groundY);
   }
 
   draw(context) {
     this.Prsan.draw(context);
+    this.Nidjo.draw(context);
+    this.Toni.draw(context);
   }
 
   reset() {
     this.Prsan.reset();
+    this.Nidjo.reset();
+    this.Toni.reset();
   }
 }

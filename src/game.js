@@ -327,7 +327,7 @@ export class Game {
     this.collectibles.update(deltaTime, this.speed, this.width, this.height, groundY);
     this.airplaneManager.update(deltaTime, this.width, this.height, this.player);
     this.birdManager.update(deltaTime, this.width, this.height, this.player);
-    this.npcManager.update(deltaTime, this.width, this.height);
+    this.npcManager.update(deltaTime, this.width, this.height, groundY);
     this.collisionEffects.update(deltaTime);
     const collectedItems = this.collectibles.collect(this.player.getBounds());
 
