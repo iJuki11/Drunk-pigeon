@@ -1,4 +1,10 @@
 import { EnemyBird } from "./enemy_bird.js";
+import {
+  DIFFICULTY,
+  getLevel,
+  getLevelConfig,
+  rollInterval,
+} from "./difficulty_system.js";
 
 /**
  * Configuration recipes for crow enemy variants. To add a new variant
@@ -79,6 +85,7 @@ export class BirdManager {
     onPlayerHit,
     partIds = ["farWing", "nearWing", "tail", "feet", "body", "head"],
     svgSrc = "./assets/images/enemy_bird.svg",
+    levelConfig = getLevelConfig(DIFFICULTY.EASY),
   } = {}) {
     this.audio = audio;
     this.player = player;
@@ -99,21 +106,21 @@ export class BirdManager {
     // reuse the resolved object via this.partsCache.
     this.partsPromise = null;
     this.partsCache = null;
-    this.scheduleNext();
+    this.scheduleNext(levelConfig);
   }
 
-  reset() {
+  reset(levelConfig = getLevelConfig(DIFFICULTY.EASY)) {
     this.instances = [];
     this.timer = 0;
-    this.scheduleNext();
+    this.scheduleNext(levelConfig);
     // Stop the bird SFX in case an instance was active when the game
     // restarted; without this the sound would keep looping.
     this.audio?.stopBird?.();
   }
 
-  scheduleNext() {
-    const span = Math.max(0, this.maxInterval - this.minInterval);
-    this.nextSpawn = this.minInterval + Math.random() * span;
+  scheduleNext(levelConfig = getLevelConfig(DIFFICULTY.EASY)) {
+    const { birdIntervalMin, birdIntervalMax } = levelConfig;
+    this.nextSpawn = rollInterval(birdIntervalMin, birdIntervalMax);
   }
 
   pickRecipe() {
@@ -214,19 +221,25 @@ export class BirdManager {
     return offsets;
   }
 
-  // Pick a formation size in [1, MAX_FORMATION_SIZE].
-  pickFormationSize() {
-    return 1 + Math.floor(Math.random() * MAX_FORMATION_SIZE);
+  // Pick a formation size in [minSize, maxSize] for the active difficulty
+  // level. Defaults to the Easy config when no level is supplied (e.g.
+  // tests that bypass the difficulty system).
+  pickFormationSize(levelConfig = getLevelConfig(DIFFICULTY.EASY)) {
+    const { birdMinSize, birdMaxSize } = levelConfig;
+    return (
+      birdMinSize +
+      Math.floor(Math.random() * (birdMaxSize - birdMinSize + 1))
+    );
   }
 
-  spawnFormation(width, height) {
+  spawnFormation(width, height, levelConfig = getLevelConfig(DIFFICULTY.EASY)) {
     const parts = this.partsCache;
     if (!parts) return false;
 
     const { key, config } = this.pickRecipe();
     const speed =
       config.minSpeed + Math.random() * (config.maxSpeed - config.minSpeed);
-    const formationSize = this.pickFormationSize();
+    const formationSize = this.pickFormationSize(levelConfig);
 
     // Y slots: lead is random across the 7-slot grid; every subsequent
     // slot is unique AND within maxGap of the previous one. Tracking
@@ -288,7 +301,7 @@ export class BirdManager {
     return true;
   }
 
-  update(deltaTime, width, height, player) {
+  update(deltaTime, width, height, player, levelConfig = getLevelConfig(DIFFICULTY.EASY)) {
     if (!Number.isFinite(deltaTime) || deltaTime <= 0) return;
 
     this.timer += deltaTime;
@@ -296,10 +309,10 @@ export class BirdManager {
     if (this.instances.length === 0) {
       if (this.timer >= this.nextSpawn) {
         this.timer = 0;
-        this.scheduleNext();
+        this.scheduleNext(levelConfig);
         // Kick off parts load lazily — first spawn will wait for them.
         this.ensureParts();
-        this.spawnFormation(width, height);
+        this.spawnFormation(width, height, levelConfig);
       }
       return;
     }
@@ -334,6 +347,8 @@ export class BirdManager {
           e.top > playerBounds.bottom
         );
         if (overlaps) {
+          // Bird damage stays 1 per spec — only the airplane's damage is tuned
+          // per difficulty level (see difficulty_system.js).
           this.player?.takeDamage?.(entry.config.damage ?? 1);
           entry.damageCooldown = 0.6;
           this.onPlayerHit?.(entry.bird.x, entry.bird.y, entry.config);

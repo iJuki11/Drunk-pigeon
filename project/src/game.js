@@ -3,6 +3,7 @@ import { CollectibleManager, COLLECTIBLE_RADIUS_FACTOR } from "./collectibles.js
 import { AssetLoader } from "./assets.js";
 import { AudioBus } from "./audio.js";
 import { AirplaneManager, BirdManager } from "./enemies.js";
+import { DIFFICULTY, getLevel, getLevelConfig } from "./difficulty_system.js";
 import { NPCManager } from "./npc_manager.js";
 import { CollisionEffects, COLLISION_EFFECT_DURATION } from "./collision_effects.js";
 import { SKIP_LAYER_IDS, ZOOM_BACKGROUND } from "./parallax-background.js";
@@ -54,6 +55,11 @@ export class Game {
     this.cachedSkyGradient = null;
     this.cachedSkyKey = "";
     this.coffees = 0;
+    // Difficulty sticky flag — once the player crosses into Hard we never
+    // step back down, even if their collectibles count somehow decreases
+    // (e.g. a future mechanic). Reset in start() so a new game starts in
+    // Easy mode again.
+    this.hasEnteredHard = false;
     // Reused every frame so we don't allocate a snapshot object per update.
     this.uiSnapshot = {
       score: 0,
@@ -89,9 +95,17 @@ export class Game {
     // player.takeDamage(amount).
     this.collisionEffects = new CollisionEffects();
     this.audio = new AudioBus();
+    // Resolve the active level once at construction. `beers` and `coffees`
+    // are 0 here so this is always the Easy config on a fresh load, but
+    // the value still flows through scheduleNext correctly when the
+    // constructor calls it. As soon as a pickup happens the difficulty
+    // is re-resolved in game.update and the next scheduleNext() picks up
+    // the new interval.
+    const initialLevelConfig = this.getLevelConfig();
     this.airplaneManager = new AirplaneManager({
       audio: this.audio,
       player: this.player,
+      levelConfig: initialLevelConfig,
       // Called the moment a prsan hit is accepted. Triggers the visual
       // burst, the hit sound, and arms the 2-second invincibility window.
       onPlayerHit: (x, y, config) => {
@@ -126,6 +140,7 @@ export class Game {
       audio: this.audio,
       player: this.player,
       assets: this.assets,
+      levelConfig: initialLevelConfig,
       // Called the moment a crow hit is accepted. Reuses the same
       // collisionEffects + audio.playHit + invincibility window as the
       // airplane so a hit feels identical regardless of which enemy
@@ -181,6 +196,55 @@ export class Game {
     // it does not affect gameplay and the only side effect is a single
     // property on window.
     if (typeof window !== "undefined") window.__game = this;
+    // Difficulty debug helpers — see difficultytest.txt for the console
+    // cheatsheet. `forceDifficulty('hard')` lets a tester promote without
+    // grinding collectibles; `addCollectibles(n)` simulates pickups.
+    if (typeof window !== "undefined") {
+      window.__game.forceDifficulty = (level) => {
+        if (!Object.values(DIFFICULTY).includes(level)) {
+          console.warn(`Unknown difficulty "${level}". Valid: ${Object.values(DIFFICULTY).join(", ")}`);
+          return null;
+        }
+        // For Medium we need totalCollectibles ≥ 20, otherwise getLevel()
+        // will still return Easy on the next read. Push the counters up
+        // past the Medium threshold and clear the Hard sticky flag so the
+        // user can also walk back down via resetDifficulty(). For Hard we
+        // just flip the sticky flag.
+        if (level === DIFFICULTY.HARD) {
+          this.hasEnteredHard = true;
+        } else {
+          this.hasEnteredHard = false;
+          if (level === DIFFICULTY.MEDIUM && this.computeScore() < 20) {
+            // Bump to the lowest Medium value (20). Split as coffees so
+            // the UI still shows a believable spread.
+            this.coffees += 20 - this.computeScore();
+          } else if (level === DIFFICULTY.EASY) {
+            // Wipe counters so the player is back at 0 collectibles.
+            this.beers = 0;
+            this.coffees = 0;
+          }
+        }
+        // Re-arm both spawn timers with the new level's interval so the
+        // change is immediately visible in the game loop.
+        this.birdManager.scheduleNext(this.getLevelConfig());
+        this.airplaneManager.scheduleNext(this.getLevelConfig());
+        return this.difficulty;
+      };
+      window.__game.addCollectibles = (n) => {
+        if (!Number.isFinite(n) || n <= 0) return this.difficulty;
+        // Split the added pickups evenly between beers and coffees for
+        // realistic-looking state; the difficulty system only cares about
+        // the total.
+        const half = Math.floor(n / 2);
+        this.beers += n - half;
+        this.coffees += half;
+        return this.difficulty;
+      };
+      window.__game.resetDifficulty = () => {
+        this.hasEnteredHard = false;
+        return this.difficulty;
+      };
+    }
     requestAnimationFrame(this.frame);
   }
 
@@ -210,11 +274,19 @@ export class Game {
   start() {
     this.beers = 0;
     this.coffees = 0;
+    // Difficulty sticky flag — once the player crosses into Hard we never
+    // step back down, even if their collectibles count somehow decreases
+    // (e.g. a future mechanic). Reset in start() so a new game starts in
+    // Easy mode again.
+    this.hasEnteredHard = false;
     this.popups = [];
     this.collisionEffects.clear();
     this.collectibles.reset();
-    this.airplaneManager.reset();
-    this.birdManager.reset();
+    // Pass the freshly-computed levelConfig so each spawn manager
+    // re-arms its timer with the right cadence before the first frame.
+    const levelConfig = this.getLevelConfig();
+    this.airplaneManager.reset(levelConfig);
+    this.birdManager.reset(levelConfig);
     this.npcManager.reset();
     // Reset in place rather than re-instantiating: managers (AirplaneManager)
     // already hold a reference to `player` from the constructor, and
@@ -282,6 +354,26 @@ export class Game {
     // ever grows (distance multiplier, combo bonus, …) there is now
     // exactly one place to change it.
     return this.beers + this.coffees;
+  }
+
+  // Resolve the active difficulty level from current collectibles count
+  // and the sticky `hasEnteredHard` flag. Returns the level config object
+  // (or a fresh Easy default if state is uninitialised).
+  getLevelConfig() {
+    const level = getLevel(this.computeScore(), this.hasEnteredHard);
+    return getLevelConfig(level);
+  }
+
+  // Read-only snapshot for the console debug cheatsheet. Wrapped in a
+  // getter so the values always reflect the latest state at call time.
+  get difficulty() {
+    return {
+      level: getLevel(this.computeScore(), this.hasEnteredHard),
+      total: this.computeScore(),
+      beers: this.beers,
+      coffees: this.coffees,
+      hasEnteredHard: this.hasEnteredHard,
+    };
   }
 
   frame(timestamp) {
@@ -356,8 +448,9 @@ export class Game {
 
     const groundY = this.getGroundY();
     this.collectibles.update(deltaTime, this.speed, this.width, this.height, groundY);
-    this.airplaneManager.update(deltaTime, this.width, this.height, this.player);
-    this.birdManager.update(deltaTime, this.width, this.height, this.player);
+    const levelConfig = this.getLevelConfig();
+    this.airplaneManager.update(deltaTime, this.width, this.height, this.player, levelConfig);
+    this.birdManager.update(deltaTime, this.width, this.height, this.player, levelConfig);
     this.npcManager.update(deltaTime, this.width, this.height, groundY);
     this.collisionEffects.update(deltaTime);
     const collectedItems = this.collectibles.collect(this.player.getBounds());

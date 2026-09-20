@@ -23,3 +23,9 @@ archive/
 # Local-only debug HTML pages
 project/test_bird.html
 project/test_formation.html
+
+# Scale-game planning notes (not part of runtime)
+project/scaleGameWithScreenSize.txt
+
+# Difficulty system debug cheatsheet (for DevTools console)
+project/difficultytest.txt

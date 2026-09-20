@@ -213,21 +213,9 @@ export class EnemyBird {
     const c = this.config;
 
     this._drawCount++;
-    if (this._drawCount === 1 || this._drawCount % 60 === 0) {
-      // eslint-disable-next-line no-console
-      console.log("[bird] draw", {
-        n: this._drawCount,
-        x: this.x.toFixed(1),
-        y: pose.y.toFixed(1),
-        scale: this.scale,
-        direction: this.direction,
-        partsKeys: Object.keys(this.parts),
-        wings: {
-          near: pose.wingAngle.toFixed(1),
-          far: pose.wingAngle.toFixed(1),
-        },
-      });
-    }
+    // Diagnostic counter — kept for future debugging without spamming the
+    // console. Read it from a breakpoint or a temporary `console.log` if
+    // you ever need to confirm a bird is being drawn.
 
     ctx.save();
 

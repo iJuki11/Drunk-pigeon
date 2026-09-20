@@ -1,10 +1,20 @@
 import { EnemyAirplane } from "./enemy_airplane.js";
+import {
+  DIFFICULTY,
+  getLevelConfig,
+  rollInterval,
+} from "./difficulty_system.js";
 
 /**
  * Configuration recipes for prsan enemy variants. To add a new variant
  * (faster, smaller, drops bonus, fires back, etc.) add an entry here and
  * choose it via the spawn recipe picker. Each variant can later carry its
  * own score/health/audio callbacks without rewriting the manager.
+ *
+ * `damage` is overridden at spawn-time by the active difficulty level
+ * (see difficulty_system.js — currently a flat 2 across all levels that
+ * spawn the airplane). Keep this default in sync if you ever split damage
+ * per-recipe.
  */
 export const AIRPLANE_RECIPES = Object.freeze({
   default: Object.freeze({
@@ -13,7 +23,7 @@ export const AIRPLANE_RECIPES = Object.freeze({
     maxSpeed: 360,        // px/s — fastest pass (double of original 180)
     spawnMargin: 120,     // px past the spawning edge
     scorePenalty: 0,
-    damage: 1,
+    damage: 2,
   }),
 });
 
@@ -26,7 +36,7 @@ export const AIRPLANE_RECIPES = Object.freeze({
  * and reading them inside `spawnOne` / the active-instance branch.
  */
 export class AirplaneManager {
-  constructor({ audio, player, recipes = AIRPLANE_RECIPES, minInterval = 10, maxInterval = 15, spawnMarginTop = 80, spawnMarginBottom = 80, onPlayerHit } = {}) {
+  constructor({ audio, player, recipes = AIRPLANE_RECIPES, minInterval = 10, maxInterval = 15, spawnMarginTop = 80, spawnMarginBottom = 80, onPlayerHit, levelConfig = getLevelConfig(DIFFICULTY.EASY) } = {}) {
     this.audio = audio;
     this.player = player;
     this.recipes = recipes;
@@ -40,21 +50,33 @@ export class AirplaneManager {
     this.onPlayerHit = typeof onPlayerHit === "function" ? onPlayerHit : null;
     this.instances = [];
     this.timer = 0;
-    this.scheduleNext();
+    // levelConfig must be passed here — otherwise the default EASY config
+    // disables the airplane entirely (nextSpawn = Infinity) and the first
+    // update() never gets a chance to schedule with the real level.
+    this.scheduleNext(levelConfig);
   }
 
-  reset() {
+  reset(levelConfig = getLevelConfig(DIFFICULTY.EASY)) {
     this.instances = [];
     this.timer = 0;
-    this.scheduleNext();
+    this.scheduleNext(levelConfig);
     // Stop the airplane SFX in case an instance was active when the
     // game restarted; without this the sound would keep looping.
     this.audio?.stopAirplane?.();
   }
 
-  scheduleNext() {
-    const span = Math.max(0, this.maxInterval - this.minInterval);
-    this.nextSpawn = this.minInterval + Math.random() * span;
+  scheduleNext(levelConfig = getLevelConfig(DIFFICULTY.EASY)) {
+    if (!levelConfig.airplaneEnabled) {
+      // Easy mode — push the next spawn far into the future so the
+      // gate in update() never fires. The level can change at runtime
+      // (e.g. difficulty promotion) and the next call here picks up
+      // the new interval.
+      this.nextSpawn = Number.POSITIVE_INFINITY;
+      this.timer = 0;
+      return;
+    }
+    const { airplaneIntervalMin, airplaneIntervalMax } = levelConfig;
+    this.nextSpawn = rollInterval(airplaneIntervalMin, airplaneIntervalMax);
   }
 
   pickRecipe() {
@@ -63,8 +85,11 @@ export class AirplaneManager {
     return { key, config: this.recipes[key] };
   }
 
-  spawnOne(width, height) {
+  spawnOne(width, height, levelConfig = getLevelConfig(DIFFICULTY.EASY)) {
     const { key, config } = this.pickRecipe();
+    // Override per-recipe damage with the level-tuned value so a single
+    // recipe definition can serve every level.
+    const damage = levelConfig.airplaneDamage ?? config.damage;
     const usableHeight = Math.max(1, height - this.spawnMarginTop - this.spawnMarginBottom);
     const y = this.spawnMarginTop + Math.random() * usableHeight;
     // Pick a random speed per spawn between minSpeed and maxSpeed — keeps
@@ -82,6 +107,7 @@ export class AirplaneManager {
       enemy,
       recipeKey: key,
       config,
+      damage,
       speed,
       // Short grace period so the plane doesn't immediately re-collide with
       // the player on the same frame it spawns. Tunable per recipe later.
@@ -94,7 +120,7 @@ export class AirplaneManager {
     console.log("[prsan] spawned", { x: enemy.x, y, recipe: key, speed: speed.toFixed(0) });
   }
 
-  update(deltaTime, width, height, player) {
+  update(deltaTime, width, height, player, levelConfig = getLevelConfig(DIFFICULTY.EASY)) {
     if (!Number.isFinite(deltaTime) || deltaTime <= 0) return;
 
     // Toni pattern: tick the global timer; spawn only when there is no
@@ -104,8 +130,8 @@ export class AirplaneManager {
     if (this.instances.length === 0) {
       if (this.timer >= this.nextSpawn) {
         this.timer = 0;
-        this.scheduleNext();
-        this.spawnOne(width, height);
+        this.scheduleNext(levelConfig);
+        this.spawnOne(width, height, levelConfig);
       }
       return;
     }
@@ -144,7 +170,7 @@ export class AirplaneManager {
         e.top > playerBounds.bottom
       );
       if (overlaps) {
-        this.player?.takeDamage?.(entry.config.damage ?? 1);
+        this.player?.takeDamage?.(entry.damage ?? 2);
         // Damage has been applied; start cooldown so a single collision
         // doesn't drain the whole healthbar in one pass.
         entry.damageCooldown = 0.6;
@@ -152,7 +178,7 @@ export class AirplaneManager {
         // the 2-second player invincibility window live there.
         this.onPlayerHit?.(entry.enemy.x, entry.enemy.y, entry.config);
         // eslint-disable-next-line no-console
-        console.log("[prsan] hit player, damage=", entry.config.damage ?? 1);
+        console.log("[prsan] hit player, damage=", entry.damage ?? 2);
       }
     }
   }
