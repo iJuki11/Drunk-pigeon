@@ -357,73 +357,85 @@ button {
 }
 
 /* Loading screen — shown while parallax PNGs and bird SVG are being fetched
-   and decoded. Same dark frame as other screens, but with breathing wings,
-   a determinate progress bar, and the percentage text updated every batch. */
+   and decoded. Just a centered image and two short labels, in the same
+   dark / gold palette as the rest of the game. */
 .screen-loading {
   z-index: 20; /* above other screens so nothing else bleeds through */
   justify-content: center;
+  gap: 1.2rem;
   padding-top: max(2rem, env(safe-area-inset-top));
   padding-bottom: max(2rem, env(safe-area-inset-bottom));
 }
 
-/* Hide determinate elements until first progress callback fires. */
-.screen-loading .loading-progress,
-.screen-loading .loading-bar {
-  visibility: hidden;
-}
-.screen-loading.has-progress .loading-progress,
-.screen-loading.has-progress .loading-bar {
-  visibility: visible;
-}
-
-/* Keep the brand-mark alive — same .brand-mark from start screen, just with
-  a "breathing" opacity loop so it doesn't look frozen. */
-.screen-loading .brand-mark {
-  animation: loading-breath 1.4s ease-in-out infinite;
-  margin-bottom: 1.4rem;
+/* Centered title image — bird.svg is roughly square at its natural size, so
+   we cap it at ~38% of the viewport width on phones and let it scale down
+   on bigger screens. Aspect-ratio is preserved via the natural width/height
+   attributes on the <img>. */
+.loading-image {
+  width: min(38vw, 14rem);
+  height: auto;
+  margin-bottom: 0.6rem;
 }
 
-@keyframes loading-breath {
-  0%, 100% { opacity: 0.6; transform: scale(0.97); }
-  50%      { opacity: 1.0; transform: scale(1.0); }
-}
-
-.loading-headline {
+.loading-line {
   margin: 0;
   color: var(--ink);
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
-  font-size: clamp(3.4rem, 18vw, 5.4rem);
-  font-weight: 900;
-  letter-spacing: -0.035em;
-  line-height: 0.82;
-  text-shadow: 0 0.35rem 0 rgba(0, 0, 0, 0.15);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-align: center;
 }
 
-.loading-progress {
-  margin: 1.2rem 0 0.55rem;
+/* Tap-to-continue state. When the parallax + bird SVG have finished
+   loading, ui.showTapToContinue() adds .is-tap to the loading screen.
+   That class:
+     - hides the "loading" line (it has no meaning anymore)
+     - shows the .loading-tap line ("tap")
+     - spawns a ripple ring under the "tap" text (see @keyframes tap-ripple)
+   The bird image stays static — the ripple below the prompt is the only
+   visual cue that the screen is alive and waiting. */
+.screen-loading.is-tap .loading-line:not(.loading-tap) {
+  display: none;
+}
+
+.screen-loading.is-tap .loading-tap {
+  display: block;
   color: var(--gold);
-  font-size: 0.95rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+  position: relative;
+  padding: 0.6rem 1.2rem;
 }
 
-.loading-bar {
-  width: min(100%, 18rem);
-  height: 0.42rem;
-  margin: 0 auto;
-  border-radius: 99px;
-  background: rgba(255, 255, 255, 0.12);
-  overflow: hidden;
+/* Ripple ring — pseudo-element absolutely positioned under the "tap" text.
+   Expands from a small dot to a wide circle while fading out, then
+   restarts. Two ripples with a 0.6 s offset give a continuous "tapping"
+   rhythm. */
+.screen-loading.is-tap .loading-tap::before,
+.screen-loading.is-tap .loading-tap::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.5rem;
+  height: 0.5rem;
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: tap-ripple 1.4s ease-out infinite;
+  opacity: 0;
 }
 
-.loading-bar-fill {
-  width: 0%;
-  height: 100%;
-  background: linear-gradient(90deg, var(--gold) 0%, #ffd76b 100%);
-  border-radius: 99px;
-  transition: width 180ms ease-out;
+.screen-loading.is-tap .loading-tap::after {
+  /* Second ripple — half a cycle offset so a new ring is always on
+     screen. Without it the rhythm feels like a single thump rather
+     than a continuous tap. */
+  animation-delay: 0.7s;
+}
+
+@keyframes tap-ripple {
+  0%   { width: 0.5rem; height: 0.5rem; opacity: 0.8; }
+  100% { width: 5rem;   height: 5rem;   opacity: 0;   }
 }
 
 /* When the screen is fading out before being detached from the DOM tree,

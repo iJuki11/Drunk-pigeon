@@ -10,14 +10,9 @@ export class GameUI {
 
     // Loading screen — shown until parallax PNGs and the bird SVG have both
     // been fetched and decoded. Owned by main.js: it calls showLoading() before
-    // constructing Game, then hideLoading() once Game.whenReady() resolves.
+    // constructing Game, then hideLoading() (or hideLoadingImmediate() on a
+    // warm-cache fast path) once Game.whenReady() resolves.
     this.loadingScreen = document.querySelector("#loading-screen");
-    this.loadingProgressText = document.querySelector("#loading-progress-text");
-    this.loadingBarFill = document.querySelector("#loading-bar-fill");
-    // Cached so updateProgress doesn't churn textContent + bar style every
-    // frame (main.js only calls updateProgress on batch boundaries anyway,
-    // but the guard keeps it safe if someone wires it to a tighter loop).
-    this.lastProgressText = "";
 
     this.beerValue = document.querySelector("#beer-value");
     this.coffeeValue = document.querySelector("#coffee-value");
@@ -41,12 +36,11 @@ export class GameUI {
 
   showLoading() {
     // Loading screen is visible by default (no `hidden` attribute) so the
-    // user sees the brand-mark the moment the HTML parses, before any JS
+    // user sees the bird image the moment the HTML parses, before any JS
     // runs. Re-show it here too in case showStart/showGameOver hid it.
     if (this.loadingScreen) {
       this.loadingScreen.hidden = false;
       this.loadingScreen.classList.remove("is-leaving");
-      this.loadingScreen.classList.remove("has-progress");
     }
     // Hide every other screen so nothing competes with the loading overlay
     // for the user's eye. We don't bother hiding the HUD — it already has
@@ -61,22 +55,48 @@ export class GameUI {
     }
   }
 
-  updateProgress(loaded, total) {
+  /**
+   * Hides the loading overlay immediately, no fade. Used on the warm-cache
+   * path in main.js where the user already saw the loading screen for
+   * <300 ms — a 320 ms fade on top of that would feel laggy, but the
+   * overlay MUST still be removed (its z-index:20 would otherwise cover
+   * the start screen's z-index:10 and block the "IGRAJ" tap).
+   */
+  hideLoadingImmediate() {
     if (!this.loadingScreen) return;
-    // Once we get the first progress signal we can reveal the determinate
-    // widgets. Before that we show only the brand-mark + breathing logo.
-    this.loadingScreen.classList.add("has-progress");
-    const safeTotal = Math.max(1, total | 0);
-    const safeLoaded = Math.max(0, Math.min(loaded | 0, safeTotal));
-    const text = `${safeLoaded} / ${safeTotal} slika`;
-    if (text !== this.lastProgressText) {
-      this.loadingProgressText.textContent = text;
-      this.lastProgressText = text;
-    }
-    const pct = Math.round((safeLoaded / safeTotal) * 100);
-    // setProperty is cheaper than re-styling the inline style attribute;
-    // it's a no-op when the value is unchanged.
-    this.loadingBarFill.style.setProperty("width", `${pct}%`);
+    this.loadingScreen.classList.remove("is-leaving");
+    this.loadingScreen.hidden = true;
+  }
+
+  /**
+   * Switches the loading screen from "loading…" to "tap to continue".
+   * The same DOM element stays on screen — only the visible text and
+   * the bird pulse animation change. main.js listens for the user's
+   * first input and then calls hideLoadingImmediate() + showStart().
+   *
+   * Called from main.js after game.whenReady() resolves. The loading
+   * screen never visibly disappears here; only its state changes.
+   */
+  showTapToContinue() {
+    if (!this.loadingScreen) return;
+    // Remove any pending fade-out so the screen stays fully opaque.
+    this.loadingScreen.classList.remove("is-leaving");
+    // .is-tap toggles the CSS rules that hide "loading", show "tap",
+    // and pulse the bird image. Without it the screen looks identical
+    // to the still-loading state.
+    this.loadingScreen.classList.add("is-tap");
+  }
+
+  /**
+   * True while the loading screen is showing the "tap" prompt (i.e. the
+   * world is loaded but the user hasn't dismissed it yet). main.js uses
+   * this to decide whether to interpret the next pointer/key event as
+   * "dismiss the tap screen" vs "start the game".
+   */
+  isTapToContinue() {
+    if (!this.loadingScreen) return false;
+    if (this.loadingScreen.hidden) return false;
+    return this.loadingScreen.classList.contains("is-tap");
   }
 
   async hideLoading() {
@@ -89,9 +109,6 @@ export class GameUI {
     await new Promise((resolve) => setTimeout(resolve, 320));
     this.loadingScreen.hidden = true;
     this.loadingScreen.classList.remove("is-leaving");
-    // Don't clear lastProgressText — keeping the final value cached means a
-    // later accidental re-show reuses the last known percentage rather than
-    // flashing "0 / 0 slika" for one frame.
   }
 
   showOfflineToast(message = "Učitavam offline scenu") {
