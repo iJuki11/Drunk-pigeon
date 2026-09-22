@@ -1,0 +1,73 @@
+Last login: Tue Sep 22 17:49:42 on ttys004
+ls -la ~/.hermes/profiles/orchestrator/skills/
+(base) Juki@MacBookAir ~ % ls -la ~/.hermes/profiles/orchestrator/skills/
+total 600
+drwx------@ 68 Juki  staff    2176 Sep 22 17:47 .
+drwx------@ 50 Juki  staff    1600 Sep 22 17:50 ..
+drwxr-xr-x@ 12 Juki  staff     384 Sep 21 09:47 .archive
+-rw-------@  1 Juki  staff    1780 Sep 22 17:27 .bundled_manifest
+drwxr-xr-x@  7 Juki  staff     224 Sep 10 08:20 .curator_backups
+-rw-r--r--@  1 Juki  staff  239245 Sep 21 21:48 .curator_ledger.jsonl
+-rw-------@  1 Juki  staff     348 Sep 21 09:47 .curator_state
+-rw-------@  1 Juki  staff      70 Sep 21 09:47 .curator_suppressed
+drwxr-xr-x@  4 Juki  staff     128 Sep 10 11:01 .hub
+drwxr-xr-x@  8 Juki  staff     256 Sep 21 09:47 .locks
+-rw-------@  1 Juki  staff   52106 Sep 22 17:22 .usage.json
+-rw-r--r--@  1 Juki  staff       0 May 26 07:59 .usage.json.lock
+drwxr-xr-x@  3 Juki  staff      96 Sep  8 10:42 animation-preview-first-workflow
+drwxr-xr-x@  8 Juki  staff     256 Sep 21 08:31 apple
+drwxr-xr-x@ 10 Juki  staff     320 Sep 21 08:31 autonomous-ai-agents
+lrwxr-xr-x   1 Juki  staff      60 Sep 22 17:47 brainstorming -> /Users/Juki/.hermes/plugins/superpowers/skills/brainstorming
+drwxr-xr-x@  5 Juki  staff     160 May 26 01:05 canvas-design
+drwxr-xr-x@ 22 Juki  staff     704 Sep 21 09:47 creative
+drwxr-xr-x@  4 Juki  staff     128 May 26 01:05 data-science
+drwxr-xr-x@  4 Juki  staff     128 Sep  6 15:16 desktop-file-delivery
+drwxr-xr-x@ 10 Juki  staff     320 Sep 16 17:16 devops
+lrwxr-xr-x   1 Juki  staff      69 Sep 22 17:47 diagnosing-superpowers -> /Users/Juki/.hermes/plugins/superpowers/skills/diagnosing-superpowers
+drwxr-xr-x@  3 Juki  staff      96 May 26 01:05 diagramming
+lrwxr-xr-x   1 Juki  staff      74 Sep 22 17:47 dispatching-parallel-agents -> /Users/Juki/.hermes/plugins/superpowers/skills/dispatching-parallel-agents
+drwxr-xr-x@  3 Juki  staff      96 May 26 01:05 domain
+drwxr-xr-x@  5 Juki  staff     160 Sep 15 13:04 email
+lrwxr-xr-x   1 Juki  staff      62 Sep 22 17:47 executing-plans -> /Users/Juki/.hermes/plugins/superpowers/skills/executing-plans
+lrwxr-xr-x   1 Juki  staff      77 Sep 22 17:47 finishing-a-development-branch -> /Users/Juki/.hermes/plugins/superpowers/skills/finishing-a-development-branch
+drwxr-xr-x@  5 Juki  staff     160 May 26 01:05 gaming
+drwxr-xr-x@  3 Juki  staff      96 May 26 01:05 gifs
+drwxr-xr-x@ 10 Juki  staff     320 Sep  4 09:18 github
+drwxr-xr-x@  3 Juki  staff      96 Sep 15 13:30 github-repo-recon
+drwxr-xr-x@  4 Juki  staff     128 Jun 19 11:35 hermes-add-mcp-server
+drwxr-xr-x@  4 Juki  staff     128 Sep 20 18:17 hermes-project-faza-workflow
+drwxr-xr-x@  3 Juki  staff      96 Aug 18 09:47 hyperframes-video
+drwxr-xr-x@  3 Juki  staff      96 May 26 01:05 inference-sh
+drwxr-xr-x@  5 Juki  staff     160 Sep 11 10:31 install-tools-for-hermes
+drwxr-xr-x@  4 Juki  staff     128 Sep  9 10:27 installing-third-party-tools-on-hermes
+drwxr-xr-x@  4 Juki  staff     128 Sep 10 08:53 local-asr-video
+drwxr-xr-x@  4 Juki  staff     128 May 26 01:05 mcp
+drwxr-xr-x@  8 Juki  staff     256 Sep  2 15:09 media
+drwxr-xr-x@ 10 Juki  staff     320 May 26 01:05 mlops
+drwxr-xr-x@  4 Juki  staff     128 May 26 01:05 note-taking
+drwxr-xr-x@  4 Juki  staff     128 Sep 21 21:48 orchestrator-discipline
+drwxr-xr-x@  5 Juki  staff     160 Sep  4 08:57 portal-listing-scraper
+drwxr-xr-x@ 23 Juki  staff     736 Sep 21 09:47 productivity
+lrwxr-xr-x   1 Juki  staff      68 Sep 22 17:47 receiving-code-review -> /Users/Juki/.hermes/plugins/superpowers/skills/receiving-code-review
+drwxr-xr-x@  3 Juki  staff      96 May 26 01:05 red-teaming
+lrwxr-xr-x   1 Juki  staff      69 Sep 22 17:47 requesting-code-review -> /Users/Juki/.hermes/plugins/superpowers/skills/requesting-code-review
+drwxr-xr-x@ 10 Juki  staff     320 Sep 10 11:01 research
+drwxr-xr-x@  3 Juki  staff      96 Jun 13 23:54 roblox-studio-games
+drwxr-xr-x@  4 Juki  staff     128 May 26 01:05 smart-home
+drwxr-xr-x@  5 Juki  staff     160 Sep  6 14:43 social-media
+drwxr-xr-x@ 20 Juki  staff     640 Sep 21 08:31 software-development
+lrwxr-xr-x   1 Juki  staff      74 Sep 22 17:47 subagent-driven-development -> /Users/Juki/.hermes/plugins/superpowers/skills/subagent-driven-development
+lrwxr-xr-x   1 Juki  staff      67 Sep 22 17:47 systematic-debugging -> /Users/Juki/.hermes/plugins/superpowers/skills/systematic-debugging
+lrwxr-xr-x   1 Juki  staff      70 Sep 22 17:47 test-driven-development -> /Users/Juki/.hermes/plugins/superpowers/skills/test-driven-development
+lrwxr-xr-x   1 Juki  staff      66 Sep 22 17:47 using-git-worktrees -> /Users/Juki/.hermes/plugins/superpowers/skills/using-git-worktrees
+lrwxr-xr-x   1 Juki  staff      64 Sep 22 17:47 using-superpowers -> /Users/Juki/.hermes/plugins/superpowers/skills/using-superpowers
+lrwxr-xr-x   1 Juki  staff      77 Sep 22 17:47 verification-before-completion -> /Users/Juki/.hermes/plugins/superpowers/skills/verification-before-completion
+drwxr-xr-x@  3 Juki  staff      96 May 26 01:05 video
+drwxr-xr-x@  4 Juki  staff     128 Sep 21 08:31 web
+drwxr-xr-x@  5 Juki  staff     160 Sep 21 00:01 web-game-feature-implementation
+drwxr-xr-x@  3 Juki  staff      96 Sep  1 14:07 webstudio-builder-vs-chrome-debugging
+drwxr-xr-x@  3 Juki  staff      96 Aug 27 14:31 webstudio-deploy
+lrwxr-xr-x   1 Juki  staff      60 Sep 22 17:47 writing-plans -> /Users/Juki/.hermes/plugins/superpowers/skills/writing-plans
+lrwxr-xr-x   1 Juki  staff      61 Sep 22 17:47 writing-skills -> /Users/Juki/.hermes/plugins/superpowers/skills/writing-skills
+drwxr-xr-x@  3 Juki  staff      96 May 26 01:05 yuanbao
+(base) Juki@MacBookAir ~ % 
