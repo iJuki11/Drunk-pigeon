@@ -3,7 +3,7 @@ import {
   DIFFICULTY,
   getLevelConfig,
   rollInterval,
-} from "./difficulty_system.js";
+} from "./config_game.js";
 
 /**
  * Configuration recipes for prsan enemy variants. To add a new variant
@@ -12,7 +12,7 @@ import {
  * own score/health/audio callbacks without rewriting the manager.
  *
  * `damage` is overridden at spawn-time by the active difficulty level
- * (see difficulty_system.js — currently a flat 2 across all levels that
+ * (see config_game.js — currently a flat 2 across all levels that
  * spawn the airplane). Keep this default in sync if you ever split damage
  * per-recipe.
  */

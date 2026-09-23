@@ -4,7 +4,7 @@ import { AssetLoader } from "./assets.js";
 import { AudioBus } from "./audio.js";
 import { audioConfig } from "./audioConfig.js";
 import { AirplaneManager, BirdManager } from "./enemies.js";
-import { DIFFICULTY, getLevel, getLevelConfig } from "./difficulty_system.js";
+import { DIFFICULTY, getLevel, getLevelConfig } from "./config_game.js";
 import { NPCManager } from "./npc_manager.js";
 import { CollisionEffects, COLLISION_EFFECT_DURATION } from "./collision_effects.js";
 import { SKIP_LAYER_IDS, ZOOM_BACKGROUND } from "./parallax-background.js";

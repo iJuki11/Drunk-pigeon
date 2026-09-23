@@ -4,7 +4,7 @@ import {
   getLevel,
   getLevelConfig,
   rollInterval,
-} from "./difficulty_system.js";
+} from "./config_game.js";
 
 /**
  * Configuration recipes for crow enemy variants. To add a new variant
@@ -354,7 +354,7 @@ export class BirdManager {
         );
         if (overlaps) {
           // Bird damage stays 1 per spec — only the airplane's damage is tuned
-          // per difficulty level (see difficulty_system.js).
+          // per difficulty level (see config_game.js).
           this.player?.takeDamage?.(entry.config.damage ?? 1);
           entry.damageCooldown = 0.6;
           this.onPlayerHit?.(entry.bird.x, entry.bird.y, entry.config);
