@@ -1,0 +1,25 @@
+============================================================
+drawio-skill
+============================================================
+Status: SKRIPTE PRIPREMLJENE
+Link:   https://github.com/Agents365-ai/drawio-skill
+What:   Editable .drawio diagram generator. CLI: diagramctl.py
+        (build/sync/views/test/review/query/whatif/story/
+        publish/transform). Python stdlib-only. Optional MCP
+        server at scripts/diagramctl_mcp.py (NOT installing).
+Install:
+  bash ~/Documents/Hermes/drawio-install/install-drawio-skill.sh
+After install:
+  1. VS Code Extensions: 'hediet.vscode-drawio'
+  2. Open any .drawio file in VS Code — renders inline, fully
+     editable (XML), saves back to same format.
+Notes:
+  - Probe order: ~/.hermes/skills/ (global, all profiles see it)
+    -> ~/.hermes/profiles/orchestrator/skills/ (orchestrator only).
+  - No brew deps required for diagram authoring. Add
+    `brew install --cask drawio` (>=30) only if you need
+    native PNG/SVG export.
+  - Source staged at /tmp/drawio-skill inside the Hermes
+    Docker container; install script handles fallback to
+    host-side git clone if that mount isn't visible.
+============================================================

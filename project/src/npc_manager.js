@@ -573,10 +573,9 @@ export class NPCKonobariManager {
     for (const konobar of this.instances) {
       konobar.draw(context);
     }
-    // Debug collider overlay — only when window.__DEBUG_KONOBARI_BOXES
-    // is explicitly set to true (e.g. from the DevTools console). Off by
-    // default so it costs nothing in normal play.
-    if (typeof window !== "undefined" && window.__DEBUG_KONOBARI_BOXES === true) {
+    // Legacy: window.__DEBUG_KONOBARI_BOXES (single-flag era) i dalje radi
+    // kao OR s novim isKonobariBoxes ako je netko postavio prije.
+    if (window.__DEBUG?.isKonobariBoxes) {
       for (const konobar of this.instances) {
         const b = konobar.getBounds();
         context.save();

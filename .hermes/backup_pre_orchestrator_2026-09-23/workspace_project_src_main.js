@@ -14,8 +14,8 @@ const ui = new GameUI();
 //      background).
 //   3. Block input — flap/pause shouldn't be reactive while the world
 //      hasn't rendered yet.
-//   4. Await game.whenReady() — resolves when parallax + bird SVG are loaded,
-//      or either required asset has definitively failed.
+//   4. Await game.whenReady() — resolves when parallax + bird SVG are both
+//      loaded, OR when parallax definitively failed (timeout/throw).
 //   5. Switch the same overlay into the "tap to continue" sub-state.
 //      We deliberately do NOT fade it out first — the user should see
 //      the same screen the whole time, with only the text and bird
@@ -35,23 +35,22 @@ const game = new Game(canvas, input, ui);
 const dismissTapScreen = () => {
   // Idempotent — first call wins, subsequent calls are no-ops.
   if (!ui.isTapToContinue()) return;
-  window.removeEventListener("pointerdown", dismissTapScreen);
-  window.removeEventListener("keydown", dismissTapScreen);
-  // Use this real gesture to start both ambient decoders while the player
-  // is still on the start screen. Spawns only change the silent loop's gain.
-  game.audio.primeAmbient();
   ui.hideLoadingImmediate();
   ui.showStart();
   input.setEnabled(true);
 
-  if (game.didParallaxFail() && game.didBirdFail()) {
-    ui.showOfflineToast("Offline scena i zamjenski golub");
-  } else if (game.didParallaxFail()) {
+  if (game.didParallaxFail()) {
+    // Only show the toast if parallax actually failed — happy path stays
+    // silent. 5 s is enough for the user to read it before it fades.
     ui.showOfflineToast("Učitavam offline scenu");
-  } else if (game.didBirdFail()) {
-    ui.showOfflineToast("Golub je prikazan zamjenskom grafikom");
   }
 };
+
+// Listen for the very first pointer/key event after the world is ready.
+// We attach to window with `once: true` per event so the listener removes
+// itself after firing; that keeps things tidy if the user mashes keys.
+window.addEventListener("pointerdown", dismissTapScreen, { once: true });
+window.addEventListener("keydown", dismissTapScreen, { once: true });
 
 (async () => {
   try {
@@ -90,9 +89,6 @@ const dismissTapScreen = () => {
   // Single transition: loading → tap. Same DOM element, just the
   // .is-tap class. CSS handles text swap + bird pulse.
   ui.showTapToContinue();
-  // Early input during loading must not consume the first valid dismissal.
-  window.addEventListener("pointerdown", dismissTapScreen);
-  window.addEventListener("keydown", dismissTapScreen);
 })();
 
 ui.bindActions(

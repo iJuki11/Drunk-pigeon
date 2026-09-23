@@ -41,9 +41,9 @@ assert.doesNotMatch(gameSource, /layer\.id === "sun" \? Math\.min/);
 const uiSource = fs.readFileSync(new URL("../src/ui.js", import.meta.url), "utf8");
 // UI updates must short-circuit when values haven't changed so DOM writes
 // don't churn every frame.
-assert.match(uiSource, /lastBeerText/);
+assert.match(uiSource, /lastScoreText/);
 assert.match(uiSource, /lastHealth/);
-assert.match(uiSource, /lastCoffeeText/);
+assert.match(uiSource, /lastCoffeeBoost/);
 
 // Configuration file must export the constants game.js reads.
 assert.match(backgroundSource, /export const ZOOM_BACKGROUND/);

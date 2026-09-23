@@ -43,11 +43,7 @@ assets/
   sounds/
 ```
 
-Igra koristi SVG dijelove goluba, spriteove likova i PNG slojeve pozadine iz `assets/`. Canvas služi za sastavljanje scene, animaciju i rezervni prikaz kad se neki asset ne može učitati. `Player`, manageri entiteta, `GameUI` i zvuk odvojeni su u module pod `src/`.
-
-Igra učitava `assets/backgrounds/background.runtime.json`, koji sadrži iste slojeve kao izvorni editorov `background.parallax.json`, ali bez praznih prozirnih rubova slika. Nakon izmjene pozadine u editoru ponovno izradi runtime datoteku naredbom `python3 tools/generate_runtime_background.py` (za tu razvojnu naredbu treba Pythonov paket Pillow). Izvorni editorov JSON ostaje netaknut.
-
-Za lokalni pregled u kojem Jev upravlja golubom slijedi upute u [preview/README.md](./preview/README.md). API ključ ostaje na lokalnom serveru i ne treba ga unositi u browser.
+Grafika se trenutno crta kroz Canvas kao placeholder. Klase `Player` i `CollectibleManager` odvojene su kako bi se kasnije jednostavno zamijenile finalnim spriteovima.
 
 Detaljna mapa modula, tko što čita/mutira i gdje cure granice — u [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md). Čitaj to prije većih izmjena.
 
